@@ -13,6 +13,7 @@ from rich.table import Table
 from pipescope import __version__
 from pipescope.graph import build_graph, graph_summary
 from pipescope.models import Asset, Edge
+from pipescope.parsers.airflow_parser import parse_airflow_file
 from pipescope.parsers.sql_parser import parse_sql_file
 from pipescope.reporters.json_report import format_scan_json
 from pipescope.scanner import DiscoveredFile, scan_directory
@@ -65,27 +66,34 @@ def _relative_file_path(file_path: Path, root: Path) -> str:
         return str(file_path)
 
 
-def collect_sql_scan(
+def collect_scan(
     root: Path,
     dialect: str | None,
 ) -> tuple[list[DiscoveredFile], list[Asset], list[Edge]]:
-    """Discover files and parse SQL / dbt model SQL."""
+    """Discover files and parse SQL, dbt models, and Airflow DAGs."""
     files = scan_directory(root)
     all_assets: list[Asset] = []
     all_edges: list[Edge] = []
     for f in files:
-        if f.file_type not in ("sql", "dbt_model"):
-            continue
         content = f.path.read_text(encoding="utf-8", errors="ignore")
         display_path = _relative_file_path(f.path, root)
-        assets, edges = parse_sql_file(display_path, content, dialect)
-        all_assets.extend(assets)
-        all_edges.extend(edges)
+        if f.file_type in ("sql", "dbt_model"):
+            assets, edges = parse_sql_file(display_path, content, dialect)
+            all_assets.extend(assets)
+            all_edges.extend(edges)
+        elif f.file_type == "airflow_dag":
+            assets, edges = parse_airflow_file(display_path, content)
+            all_assets.extend(assets)
+            all_edges.extend(edges)
     return files, all_assets, all_edges
 
 
 def _parsed_sql_file_count(files: list[DiscoveredFile]) -> int:
     return sum(1 for f in files if f.file_type in ("sql", "dbt_model"))
+
+
+def _parsed_airflow_file_count(files: list[DiscoveredFile]) -> int:
+    return sum(1 for f in files if f.file_type == "airflow_dag")
 
 
 @app.command()
@@ -110,7 +118,7 @@ def scan(
         raise typer.BadParameter("format must be 'terminal' or 'json'")
 
     root = Path(path).resolve()
-    files, all_assets, all_edges = collect_sql_scan(root, dialect)
+    files, all_assets, all_edges = collect_scan(root, dialect)
 
     g = build_graph(all_assets, all_edges)
     summary = graph_summary(g)
@@ -122,6 +130,7 @@ def scan(
             scan_root=str(root),
             discovered_file_count=len(files),
             parsed_sql_file_count=_parsed_sql_file_count(files),
+            parsed_airflow_file_count=_parsed_airflow_file_count(files),
             assets=all_assets,
             edges=all_edges,
             graph=summary,

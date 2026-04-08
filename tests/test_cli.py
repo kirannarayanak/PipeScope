@@ -85,3 +85,21 @@ def test_scan_format_json_is_valid_json(runner: CliRunner) -> None:
 def test_scan_rejects_invalid_format(runner: CliRunner) -> None:
     result = _invoke_scan(runner, "--format", "xml")
     assert result.exit_code != 0
+
+
+def test_scan_includes_airflow_dag_from_fixtures(runner: CliRunner) -> None:
+    """tests/fixtures contains airflow_sample_dag.py classified as airflow_dag."""
+    result = _invoke_scan(runner, "--dialect", "postgres")
+    assert result.exit_code == 0
+    out = result.stdout
+    assert "sample_pipeline" in out
+    assert "airflow_dag" in out or "airflow_task" in out
+
+
+def test_scan_json_includes_airflow_parse_count(runner: CliRunner) -> None:
+    result = _invoke_scan(runner, "--format", "json", "--dialect", "postgres")
+    assert result.exit_code == 0
+    data = json.loads(result.stdout)
+    assert data.get("parsed_airflow_file_count", 0) >= 1
+    types = {a["asset_type"] for a in data["assets"]}
+    assert "airflow_dag" in types or "airflow_task" in types
