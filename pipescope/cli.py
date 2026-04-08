@@ -13,10 +13,7 @@ from rich.table import Table
 from pipescope import __version__
 from pipescope.graph import build_graph, graph_summary
 from pipescope.models import Asset, Edge
-from pipescope.parsers.airflow_parser import parse_airflow_file
-from pipescope.parsers.dbt_parser import parse_dbt_project
-from pipescope.parsers.spark_parser import parse_spark_file
-from pipescope.parsers.sql_parser import parse_sql_file
+from pipescope.parsers import parse_dbt_project, parse_file
 from pipescope.reporters.json_report import format_scan_json
 from pipescope.scanner import DiscoveredFile, scan_directory
 
@@ -144,22 +141,21 @@ def collect_scan(
         all_edges.extend(dbt_edges)
 
     for f in files:
-        content = f.path.read_text(encoding="utf-8", errors="ignore")
-        display_path = _relative_file_path(f.path, scan_root)
-        if f.file_type in ("sql", "dbt_model"):
-            if f.file_type == "dbt_model" and _path_under_any_project(f.path, dbt_roots):
-                continue
-            assets, edges = parse_sql_file(display_path, content, dialect)
-            all_assets.extend(assets)
-            all_edges.extend(edges)
-        elif f.file_type == "airflow_dag":
-            assets, edges = parse_airflow_file(display_path, content)
-            all_assets.extend(assets)
-            all_edges.extend(edges)
-        elif f.file_type == "spark_job":
-            assets, edges = parse_spark_file(display_path, content)
-            all_assets.extend(assets)
-            all_edges.extend(edges)
+        if f.file_type == "dbt_model" and _path_under_any_project(f.path, dbt_roots):
+            continue
+        if f.file_type == "dbt_schema" and _path_under_any_project(f.path, dbt_roots):
+            continue
+        if f.file_type not in (
+            "sql",
+            "dbt_model",
+            "dbt_schema",
+            "airflow_dag",
+            "spark_job",
+        ):
+            continue
+        assets, edges = parse_file(f, dialect, scan_root=scan_root)
+        all_assets.extend(assets)
+        all_edges.extend(edges)
 
     all_edges = _dedupe_edges(all_edges)
     return files, all_assets, all_edges

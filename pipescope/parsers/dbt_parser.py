@@ -32,6 +32,70 @@ class ModelMeta:
     columns: list[str] = field(default_factory=list)
 
 
+def parse_dbt_model(file_path: str, content: str) -> tuple[list[Asset], list[Edge]]:
+    """Parse a single dbt model SQL file (Jinja refs/sources + SQL lineage)."""
+    model_name = Path(file_path).stem
+    meta = ModelMeta()
+    project_name = "unknown"
+    asset = Asset(
+        name=model_name,
+        asset_type=AssetType.DBT_MODEL,
+        file_path=file_path,
+        columns=list(meta.columns),
+        has_docs=meta.has_docs,
+        has_tests=meta.has_tests,
+        description=meta.description,
+        tags={"project": project_name},
+    )
+    assets: list[Asset] = [asset]
+    source_assets: dict[str, Asset] = {}
+    edges: list[Edge] = []
+    seen_edges: set[tuple[str, str]] = set()
+
+    for ref_name in _extract_refs(content):
+        _add_edge_once(edges, seen_edges, source=ref_name, target=model_name)
+
+    for source_name, table_name in _extract_sources(content):
+        source_asset_name = f"{source_name}.{table_name}"
+        if source_asset_name not in source_assets:
+            source_assets[source_asset_name] = Asset(
+                name=source_asset_name,
+                asset_type=AssetType.DBT_SOURCE,
+                file_path=file_path,
+                tags={"project": project_name, "defined_from": "source_call"},
+            )
+            assets.append(source_assets[source_asset_name])
+        _add_edge_once(edges, seen_edges, source=source_asset_name, target=model_name)
+
+    cleaned_sql = _strip_jinja(content)
+    for table_name in _extract_sql_tables(cleaned_sql):
+        if table_name == model_name:
+            continue
+        _add_edge_once(edges, seen_edges, source=table_name, target=model_name)
+
+    return assets, edges
+
+
+def parse_dbt_schema(file_path: str, content: str) -> tuple[list[Asset], list[Edge]]:
+    """Parse a dbt schema YAML (declarative sources and model metadata)."""
+    yml_path = Path(file_path).resolve()
+    root = yml_path.parent
+    payload = _safe_yaml_from_string(content)
+    if not payload:
+        return [], []
+    sources: dict[str, Asset] = {}
+    _collect_source_assets(payload, yml_path, root, sources)
+    return list(sources.values()), []
+
+
+def _safe_yaml_from_string(text: str) -> dict:
+    try:
+        raw = yaml.safe_load(text)
+    except yaml.YAMLError:
+        return {}
+    return raw if isinstance(raw, dict) else {}
+
+
 def parse_dbt_project(root: Path) -> tuple[list[Asset], list[Edge]]:
     """Parse dbt files under *root* into PipeScope assets and edges."""
     root = root.resolve()
