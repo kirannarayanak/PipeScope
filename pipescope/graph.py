@@ -88,6 +88,56 @@ class PipelineGraph:
             return 0
 
 
+def build_pipeline_graph(assets: list[Asset], edges: list[Edge]) -> PipelineGraph:
+    """Build a :class:`PipelineGraph`; topology matches :func:`build_graph`."""
+    pg = PipelineGraph()
+    for asset in assets:
+        pg.add_asset(asset)
+    for edge in edges:
+        if edge.source not in pg.g:
+            pg.g.add_node(edge.source, kind="reference_only")
+        if edge.target not in pg.g:
+            pg.g.add_node(edge.target, kind="reference_only")
+        pg.add_edge(edge)
+    return pg
+
+
+def compute_scan_analytics(
+    pg: PipelineGraph,
+    assets: list[Asset],
+    *,
+    fanout_threshold: int = 15,
+) -> dict[str, Any]:
+    """Dead/orphan assets, fan-out, cycles, critical path, and ``has_tests`` coverage."""
+    dead = pg.get_dead_assets()
+    orphans = pg.get_orphan_assets()
+    fanout = pg.get_high_fanout(threshold=fanout_threshold)
+    cycles = pg.get_cycles()
+    cp = pg.get_critical_path()
+    n = len(assets)
+    with_tests = sum(1 for a in assets if a.has_tests)
+    return {
+        "dead_asset_count": len(dead),
+        "dead_assets": sorted(dead),
+        "orphan_asset_count": len(orphans),
+        "orphan_assets": sorted(orphans),
+        "high_fanout": [
+            {"asset": name, "out_degree": deg}
+            for name, deg in sorted(fanout, key=lambda x: x[0])
+        ],
+        "high_fanout_threshold": fanout_threshold,
+        "cycle_count": len(cycles),
+        "cycles": cycles,
+        "critical_path_length": len(cp),
+        "critical_path": cp,
+        "test_coverage": {
+            "asset_count": n,
+            "assets_with_tests": with_tests,
+            "coverage_ratio": round(with_tests / n, 6) if n else None,
+        },
+    }
+
+
 def new_graph() -> nx.DiGraph:
     """Return an empty directed graph for assets and edges."""
     return nx.DiGraph()

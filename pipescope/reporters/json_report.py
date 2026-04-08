@@ -26,9 +26,10 @@ def format_scan_json(
     assets: list[Asset],
     edges: list[Edge],
     graph: dict[str, Any],
+    analytics: dict[str, Any] | None = None,
 ) -> str:
     """Build a single JSON document for ``pipescope scan --format json``."""
-    payload = {
+    payload: dict[str, Any] = {
         "version": version,
         "scan_root": scan_root,
         "discovered_file_count": discovered_file_count,
@@ -40,4 +41,6 @@ def format_scan_json(
         "edges": [e.model_dump(mode="json") for e in edges],
         "graph": graph,
     }
+    if analytics is not None:
+        payload["analytics"] = analytics
     return json.dumps(payload, indent=2, ensure_ascii=False)

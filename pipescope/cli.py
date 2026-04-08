@@ -11,7 +11,7 @@ from rich.console import Console
 from rich.table import Table
 
 from pipescope import __version__
-from pipescope.graph import build_graph, graph_summary
+from pipescope.graph import build_pipeline_graph, compute_scan_analytics, graph_summary
 from pipescope.models import Asset, Edge
 from pipescope.parsers import parse_dbt_project, parse_file
 from pipescope.reporters.json_report import format_scan_json
@@ -209,8 +209,9 @@ def scan(
     files, all_assets, all_edges = collect_scan(root, dialect)
     dbt_roots = set(_collect_dbt_project_roots(root, files))
 
-    g = build_graph(all_assets, all_edges)
-    summary = graph_summary(g)
+    pg = build_pipeline_graph(all_assets, all_edges)
+    summary = graph_summary(pg.g)
+    analytics = compute_scan_analytics(pg, all_assets)
 
     if fmt == "json":
         _ensure_utf8_stdio()
@@ -225,6 +226,7 @@ def scan(
             assets=all_assets,
             edges=all_edges,
             graph=summary,
+            analytics=analytics,
         )
         sys.stdout.write(payload)
         if not payload.endswith("\n"):
@@ -265,6 +267,18 @@ def scan(
         f"\n[bold]Graph:[/] {summary['node_count']} nodes, "
         f"{summary['edge_count']} edges, "
         f"DAG={summary['is_directed_acyclic']}",
+    )
+    tc = analytics["test_coverage"]
+    cov_pct = (
+        f"{100.0 * tc['coverage_ratio']:.1f}%"
+        if tc.get("coverage_ratio") is not None
+        else "n/a"
+    )
+    console.print(
+        f"[bold]Analytics:[/] dead assets={analytics['dead_asset_count']}, "
+        f"orphans={analytics['orphan_asset_count']}, "
+        f"cycles={analytics['cycle_count']}, "
+        f"test coverage={tc['assets_with_tests']}/{tc['asset_count']} ({cov_pct})",
     )
 
 
