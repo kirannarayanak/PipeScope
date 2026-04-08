@@ -30,10 +30,16 @@ ruff check pipescope tests
 
 Optional: `pre-commit run --all-files` runs the same hooks as on commit (Ruff, YAML/TOML checks, whitespace).
 
+### Windows terminal
+
+On Windows, PipeScope reconfigures stdout/stderr to UTF-8 when supported so Rich tables and paths render correctly. For best results, use **Windows Terminal** or **PowerShell 7+**; you can also set `PYTHONUTF8=1` in the environment or run `chcp 65001` in legacy consoles.
+
 ## Usage
 
 ```bash
 pipescope --help
+pipescope scan .
+pipescope scan path/to/repo --dialect postgres
 ```
 
 ## License

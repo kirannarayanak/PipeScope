@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
+import pytest
+from click.testing import Result
 from typer.testing import CliRunner
 
 from pipescope.cli import app
@@ -11,16 +14,56 @@ from pipescope.cli import app
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
 
-def test_scan_prints_assets_and_edges_table() -> None:
-    runner = CliRunner()
-    result = runner.invoke(
+@pytest.fixture
+def runner() -> CliRunner:
+    return CliRunner()
+
+
+def _invoke_scan(
+    runner: CliRunner,
+    *extra: str,
+    path: str | None = None,
+) -> Result:
+    args = ["scan", path or str(FIXTURES.resolve()), *extra]
+    return runner.invoke(
         app,
-        ["scan", str(FIXTURES.resolve()), "--dialect", "postgres"],
+        args,
         color=False,
+        env={"PYTHONUTF8": "1"},
     )
+
+
+def test_scan_prints_assets_and_edges_table(runner: CliRunner) -> None:
+    result = _invoke_scan(runner, "--dialect", "postgres")
     assert result.exit_code == 0, result.stdout + result.stderr
     out = result.stdout
     assert "Scanning" in out
     assert "data files" in out
     assert "Discovered Assets" in out
     assert "Edges (dependencies):" in out
+
+
+def test_scan_reports_nonzero_edge_count_when_fixtures_have_sql(runner: CliRunner) -> None:
+    result = _invoke_scan(runner, "--dialect", "postgres")
+    assert result.exit_code == 0
+    m = re.search(r"Edges \(dependencies\):\s*(\d+)", result.stdout)
+    assert m is not None
+    assert int(m.group(1)) >= 1
+
+
+def test_scan_works_without_dialect_option(runner: CliRunner) -> None:
+    result = _invoke_scan(runner)
+    assert result.exit_code == 0
+    assert "Discovered Assets" in result.stdout
+
+
+def test_root_help_lists_scan_subcommand(runner: CliRunner) -> None:
+    result = runner.invoke(app, ["--help"], color=False)
+    assert result.exit_code == 0
+    assert "scan" in result.stdout.lower()
+
+
+def test_scan_help_shows_path_and_dialect(runner: CliRunner) -> None:
+    result = runner.invoke(app, ["scan", "--help"], color=False)
+    assert result.exit_code == 0
+    assert "dialect" in result.stdout.lower() or "--dialect" in result.stdout
