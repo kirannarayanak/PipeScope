@@ -16,7 +16,19 @@ venv\Scripts\activate
 # source venv/bin/activate
 
 pip install -e ".[dev]"
+pre-commit install
 ```
+
+## Development
+
+Run the test suite and linter locally:
+
+```bash
+pytest
+ruff check pipescope tests
+```
+
+Optional: `pre-commit run --all-files` runs the same hooks as on commit (Ruff, YAML/TOML checks, whitespace).
 
 ## Usage
 
