@@ -47,7 +47,7 @@ JSON output includes `assets`, `edges`, and a `graph` summary (`node_count`, `ed
 
 ## CI
 
-On GitHub, [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs **Ruff** and **pytest** on Python 3.11 and 3.12 for every push and pull request to `main`.
+On GitHub, [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs **Ruff** (`ruff check .`) and **pytest** with coverage (`pytest --cov=pipescope`) on Python **3.11** for every **push** and **pull_request**.
 
 ## License
 
