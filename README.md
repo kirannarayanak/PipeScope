@@ -40,7 +40,14 @@ On Windows, PipeScope reconfigures stdout/stderr to UTF-8 when supported so Rich
 pipescope --help
 pipescope scan .
 pipescope scan path/to/repo --dialect postgres
+pipescope scan . --format json
 ```
+
+JSON output includes `assets`, `edges`, and a `graph` summary (`node_count`, `edge_count`, `is_directed_acyclic`) for CI and tooling.
+
+## CI
+
+On GitHub, [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs **Ruff** and **pytest** on Python 3.11 and 3.12 for every push and pull request to `main`.
 
 ## License
 

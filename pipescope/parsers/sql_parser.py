@@ -158,7 +158,7 @@ def detect_cost_patterns(content: str, dialect: str | None = None) -> list[str]:
                 patterns.append("CROSS_JOIN")
                 break
 
-        if isinstance(stmt, (exp.Delete, exp.Update)) and not stmt.find(exp.Where):
+        if isinstance(stmt, exp.Delete | exp.Update) and not stmt.find(exp.Where):
             patterns.append("MISSING_WHERE_CLAUSE")
 
     # Preserve order, drop duplicates

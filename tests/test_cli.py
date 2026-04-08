@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -41,6 +42,7 @@ def test_scan_prints_assets_and_edges_table(runner: CliRunner) -> None:
     assert "data files" in out
     assert "Discovered Assets" in out
     assert "Edges (dependencies):" in out
+    assert "Graph:" in out
 
 
 def test_scan_reports_nonzero_edge_count_when_fixtures_have_sql(runner: CliRunner) -> None:
@@ -67,3 +69,19 @@ def test_scan_help_shows_path_and_dialect(runner: CliRunner) -> None:
     result = runner.invoke(app, ["scan", "--help"], color=False)
     assert result.exit_code == 0
     assert "dialect" in result.stdout.lower() or "--dialect" in result.stdout
+
+
+def test_scan_format_json_is_valid_json(runner: CliRunner) -> None:
+    result = _invoke_scan(runner, "--format", "json", "--dialect", "postgres")
+    assert result.exit_code == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert "version" in data
+    assert "assets" in data and "edges" in data
+    assert "graph" in data
+    assert data["graph"]["node_count"] >= 1
+    assert "Scanning" not in result.stdout
+
+
+def test_scan_rejects_invalid_format(runner: CliRunner) -> None:
+    result = _invoke_scan(runner, "--format", "xml")
+    assert result.exit_code != 0
