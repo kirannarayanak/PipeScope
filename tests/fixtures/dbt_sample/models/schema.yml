@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: stg_events
+    description: Staging events
+    columns:
+      - name: id
+        description: Event id
+        tests:
+          - not_null
+  - name: fct_sessions
+    columns:
+      - name: id
+        tests:
+          - not_null
+
+sources:
+  - name: raw
+    tables:
+      - name: events
+        description: Raw events source
+        columns:
+          - name: id
+            tests:
+              - not_null
