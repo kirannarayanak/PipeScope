@@ -102,5 +102,24 @@ def test_scan_json_includes_airflow_parse_count(runner: CliRunner) -> None:
     data = json.loads(result.stdout)
     assert data.get("parsed_airflow_file_count", 0) >= 1
     assert data.get("parsed_spark_file_count", 0) >= 1
+    assert data.get("parsed_dbt_project_count", 0) >= 1
     types = {a["asset_type"] for a in data["assets"]}
     assert "airflow_dag" in types or "airflow_task" in types
+    assert "dbt_model" in types or "dbt_source" in types
+
+
+def test_scan_dbt_sample_lineage_from_dbt_parser(runner: CliRunner) -> None:
+    """dbt_sample: ref + source edges come from parse_dbt_project, not plain SQL."""
+    dbt_root = str((FIXTURES / "dbt_sample").resolve())
+    result = runner.invoke(
+        app,
+        ["scan", dbt_root, "--format", "json", "--dialect", "postgres"],
+        color=False,
+        env={"PYTHONUTF8": "1"},
+    )
+    assert result.exit_code == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert data.get("parsed_dbt_project_count") == 1
+    edges = {(e["source"], e["target"]) for e in data["edges"]}
+    assert ("stg_events", "fct_sessions") in edges
+    assert ("raw.events", "stg_events") in edges

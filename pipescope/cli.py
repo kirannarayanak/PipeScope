@@ -14,6 +14,7 @@ from pipescope import __version__
 from pipescope.graph import build_graph, graph_summary
 from pipescope.models import Asset, Edge
 from pipescope.parsers.airflow_parser import parse_airflow_file
+from pipescope.parsers.dbt_parser import parse_dbt_project
 from pipescope.parsers.spark_parser import parse_spark_file
 from pipescope.parsers.sql_parser import parse_sql_file
 from pipescope.reporters.json_report import format_scan_json
@@ -67,18 +68,87 @@ def _relative_file_path(file_path: Path, root: Path) -> str:
         return str(file_path)
 
 
+def _collect_dbt_project_roots(scan_root: Path, files: list[DiscoveredFile]) -> list[Path]:
+    """Directory paths that contain ``dbt_project.yml`` (one dbt project each)."""
+    roots: set[Path] = set()
+    for f in files:
+        if f.file_type == "dbt_project":
+            roots.add(f.path.resolve().parent)
+    if not roots:
+        for yml in scan_root.rglob("dbt_project.yml"):
+            if yml.is_file():
+                roots.add(yml.resolve().parent)
+    return sorted(roots)
+
+
+def _path_under_any_project(path: Path, project_roots: set[Path]) -> bool:
+    rp = path.resolve()
+    for pr in project_roots:
+        try:
+            rp.relative_to(pr)
+            return True
+        except ValueError:
+            continue
+    return False
+
+
+def _remap_asset_paths_to_scan_root(
+    assets: list,
+    project_root: Path,
+    scan_root: Path,
+) -> None:
+    """Rewrite ``file_path`` from dbt-project-relative to scan-root-relative."""
+    scan_root = scan_root.resolve()
+    project_root = project_root.resolve()
+    for asset in assets:
+        rel = Path(asset.file_path)
+        if rel.is_absolute():
+            full = rel
+        else:
+            full = (project_root / rel).resolve()
+        try:
+            asset.file_path = str(full.relative_to(scan_root))
+        except ValueError:
+            asset.file_path = str(full)
+
+
+def _dedupe_edges(edges: list[Edge]) -> list[Edge]:
+    seen: set[tuple[str, str]] = set()
+    out: list[Edge] = []
+    for e in edges:
+        k = (e.source, e.target)
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(e)
+    return out
+
+
 def collect_scan(
     root: Path,
     dialect: str | None,
 ) -> tuple[list[DiscoveredFile], list[Asset], list[Edge]]:
-    """Discover files and parse SQL, dbt models, Airflow DAGs, and Spark jobs."""
-    files = scan_directory(root)
+    """Discover files and parse SQL, dbt projects, Airflow DAGs, and Spark jobs."""
+    scan_root = root.resolve()
+    files = scan_directory(scan_root)
+    dbt_roots_list = _collect_dbt_project_roots(scan_root, files)
+    dbt_roots = set(dbt_roots_list)
+
     all_assets: list[Asset] = []
     all_edges: list[Edge] = []
+
+    for project_root in dbt_roots_list:
+        dbt_assets, dbt_edges = parse_dbt_project(project_root)
+        _remap_asset_paths_to_scan_root(dbt_assets, project_root, scan_root)
+        all_assets.extend(dbt_assets)
+        all_edges.extend(dbt_edges)
+
     for f in files:
         content = f.path.read_text(encoding="utf-8", errors="ignore")
-        display_path = _relative_file_path(f.path, root)
+        display_path = _relative_file_path(f.path, scan_root)
         if f.file_type in ("sql", "dbt_model"):
+            if f.file_type == "dbt_model" and _path_under_any_project(f.path, dbt_roots):
+                continue
             assets, edges = parse_sql_file(display_path, content, dialect)
             all_assets.extend(assets)
             all_edges.extend(edges)
@@ -90,11 +160,20 @@ def collect_scan(
             assets, edges = parse_spark_file(display_path, content)
             all_assets.extend(assets)
             all_edges.extend(edges)
+
+    all_edges = _dedupe_edges(all_edges)
     return files, all_assets, all_edges
 
 
-def _parsed_sql_file_count(files: list[DiscoveredFile]) -> int:
-    return sum(1 for f in files if f.file_type in ("sql", "dbt_model"))
+def _parsed_sql_file_count(files: list[DiscoveredFile], dbt_roots: set[Path]) -> int:
+    n = 0
+    for f in files:
+        if f.file_type not in ("sql", "dbt_model"):
+            continue
+        if f.file_type == "dbt_model" and _path_under_any_project(f.path, dbt_roots):
+            continue
+        n += 1
+    return n
 
 
 def _parsed_airflow_file_count(files: list[DiscoveredFile]) -> int:
@@ -103,6 +182,10 @@ def _parsed_airflow_file_count(files: list[DiscoveredFile]) -> int:
 
 def _parsed_spark_file_count(files: list[DiscoveredFile]) -> int:
     return sum(1 for f in files if f.file_type == "spark_job")
+
+
+def _parsed_dbt_project_count(dbt_roots: list[Path]) -> int:
+    return len(dbt_roots)
 
 
 @app.command()
@@ -128,6 +211,7 @@ def scan(
 
     root = Path(path).resolve()
     files, all_assets, all_edges = collect_scan(root, dialect)
+    dbt_roots = set(_collect_dbt_project_roots(root, files))
 
     g = build_graph(all_assets, all_edges)
     summary = graph_summary(g)
@@ -138,9 +222,10 @@ def scan(
             version=__version__,
             scan_root=str(root),
             discovered_file_count=len(files),
-            parsed_sql_file_count=_parsed_sql_file_count(files),
+            parsed_sql_file_count=_parsed_sql_file_count(files, dbt_roots),
             parsed_airflow_file_count=_parsed_airflow_file_count(files),
             parsed_spark_file_count=_parsed_spark_file_count(files),
+            parsed_dbt_project_count=_parsed_dbt_project_count(sorted(dbt_roots)),
             assets=all_assets,
             edges=all_edges,
             graph=summary,
