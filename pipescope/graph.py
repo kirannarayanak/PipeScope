@@ -8,6 +8,85 @@ import networkx as nx
 
 from pipescope.models import Asset, Edge
 
+# Asset types treated as intentional sinks (e.g. dashboards) — excluded from "dead asset" lists.
+_TERMINAL_ASSET_TYPES: frozenset[str] = frozenset()
+
+
+class PipelineGraph:
+    """Directed lineage graph with analytics helpers (dead assets, cycles, fan-out, depth)."""
+
+    def __init__(self) -> None:
+        self.g: nx.DiGraph = nx.DiGraph()
+
+    def add_asset(self, asset: Asset) -> None:
+        self.g.add_node(asset.name, **asset.model_dump(mode="json"))
+
+    def add_edge(self, edge: Edge) -> None:
+        data = edge.model_dump(mode="json")
+        u = data.pop("source")
+        v = data.pop("target")
+        self.g.add_edge(u, v, **data)
+
+    def get_dead_assets(self) -> list[str]:
+        """Sinks with upstream inputs (``out_degree == 0``, ``in_degree > 0``).
+
+        Skips node types listed in ``_TERMINAL_ASSET_TYPES`` when ``asset_type`` is set.
+        """
+        dead = [
+            n
+            for n in self.g.nodes()
+            if self.g.out_degree(n) == 0 and self.g.in_degree(n) > 0
+        ]
+        return [
+            n
+            for n in dead
+            if self.g.nodes[n].get("asset_type") not in _TERMINAL_ASSET_TYPES
+        ]
+
+    def get_orphan_assets(self) -> list[str]:
+        """Assets with no upstream and no downstream (isolated nodes)."""
+        return [n for n in self.g.nodes() if self.g.degree(n) == 0]
+
+    def get_high_fanout(self, threshold: int = 15) -> list[tuple[str, int]]:
+        """Assets feeding more than *threshold* downstream consumers."""
+        return [
+            (n, self.g.out_degree(n))
+            for n in self.g.nodes()
+            if self.g.out_degree(n) > threshold
+        ]
+
+    def get_cycles(self) -> list[list[str]]:
+        """Circular dependencies (should be empty in a healthy DAG)."""
+        try:
+            return list(nx.simple_cycles(self.g))
+        except Exception:
+            return []
+
+    def get_critical_path(self) -> list[str]:
+        """Longest dependency chain (unweighted). Empty if the graph is not a DAG."""
+        if not nx.is_directed_acyclic_graph(self.g):
+            return []
+        try:
+            return list(nx.dag_longest_path(self.g))
+        except Exception:
+            return []
+
+    def depth(self, node: str) -> int:
+        """Shortest distance from any root (in-degree 0) to *node*; largest over roots."""
+        try:
+            roots = [n for n in self.g.nodes() if self.g.in_degree(n) == 0]
+            if not roots:
+                return 0
+            lengths: list[int] = []
+            for root in roots:
+                try:
+                    lengths.append(nx.shortest_path_length(self.g, root, node))
+                except nx.NetworkXNoPath:
+                    pass
+            return max(lengths) if lengths else 0
+        except Exception:
+            return 0
+
 
 def new_graph() -> nx.DiGraph:
     """Return an empty directed graph for assets and edges."""
