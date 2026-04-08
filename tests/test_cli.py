@@ -101,5 +101,6 @@ def test_scan_json_includes_airflow_parse_count(runner: CliRunner) -> None:
     assert result.exit_code == 0
     data = json.loads(result.stdout)
     assert data.get("parsed_airflow_file_count", 0) >= 1
+    assert data.get("parsed_spark_file_count", 0) >= 1
     types = {a["asset_type"] for a in data["assets"]}
     assert "airflow_dag" in types or "airflow_task" in types

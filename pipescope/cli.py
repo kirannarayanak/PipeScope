@@ -14,6 +14,7 @@ from pipescope import __version__
 from pipescope.graph import build_graph, graph_summary
 from pipescope.models import Asset, Edge
 from pipescope.parsers.airflow_parser import parse_airflow_file
+from pipescope.parsers.spark_parser import parse_spark_file
 from pipescope.parsers.sql_parser import parse_sql_file
 from pipescope.reporters.json_report import format_scan_json
 from pipescope.scanner import DiscoveredFile, scan_directory
@@ -70,7 +71,7 @@ def collect_scan(
     root: Path,
     dialect: str | None,
 ) -> tuple[list[DiscoveredFile], list[Asset], list[Edge]]:
-    """Discover files and parse SQL, dbt models, and Airflow DAGs."""
+    """Discover files and parse SQL, dbt models, Airflow DAGs, and Spark jobs."""
     files = scan_directory(root)
     all_assets: list[Asset] = []
     all_edges: list[Edge] = []
@@ -85,6 +86,10 @@ def collect_scan(
             assets, edges = parse_airflow_file(display_path, content)
             all_assets.extend(assets)
             all_edges.extend(edges)
+        elif f.file_type == "spark_job":
+            assets, edges = parse_spark_file(display_path, content)
+            all_assets.extend(assets)
+            all_edges.extend(edges)
     return files, all_assets, all_edges
 
 
@@ -94,6 +99,10 @@ def _parsed_sql_file_count(files: list[DiscoveredFile]) -> int:
 
 def _parsed_airflow_file_count(files: list[DiscoveredFile]) -> int:
     return sum(1 for f in files if f.file_type == "airflow_dag")
+
+
+def _parsed_spark_file_count(files: list[DiscoveredFile]) -> int:
+    return sum(1 for f in files if f.file_type == "spark_job")
 
 
 @app.command()
@@ -131,6 +140,7 @@ def scan(
             discovered_file_count=len(files),
             parsed_sql_file_count=_parsed_sql_file_count(files),
             parsed_airflow_file_count=_parsed_airflow_file_count(files),
+            parsed_spark_file_count=_parsed_spark_file_count(files),
             assets=all_assets,
             edges=all_edges,
             graph=summary,
