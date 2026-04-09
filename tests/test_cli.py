@@ -44,6 +44,7 @@ def test_scan_prints_assets_and_edges_table(runner: CliRunner) -> None:
     assert "Edges (dependencies):" in out
     assert "Graph:" in out
     assert "Analytics:" in out
+    assert "test-coverage score=" in out
 
 
 def test_scan_reports_nonzero_edge_count_when_fixtures_have_sql(runner: CliRunner) -> None:
@@ -83,6 +84,7 @@ def test_scan_format_json_is_valid_json(runner: CliRunner) -> None:
     assert data["graph"]["node_count"] >= 1
     assert "findings" in data and isinstance(data["findings"], list)
     assert "scores" in data and "dead_assets" in data["scores"]
+    assert "test_coverage" in data["scores"]
     assert "dead_asset_analysis" in data["analytics"]
     tc = data["analytics"]["test_coverage"]
     assert "asset_count" in tc and "assets_with_tests" in tc and "coverage_ratio" in tc

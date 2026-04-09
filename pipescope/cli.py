@@ -16,6 +16,7 @@ from pipescope.analyzers.dead_assets import (
     parse_dead_asset_terminal_tags_cli,
     parse_dead_asset_whitelist_cli,
 )
+from pipescope.analyzers.test_coverage import analyze_test_coverage
 from pipescope.graph import build_pipeline_graph, compute_scan_analytics, graph_summary
 from pipescope.models import Asset, Edge
 from pipescope.parsers import parse_dbt_project, parse_file
@@ -237,9 +238,19 @@ def scan(
         whitelist=parse_dead_asset_whitelist_cli(dead_asset_whitelist),
         terminal_tag_markers=parse_dead_asset_terminal_tags_cli(dead_asset_terminal_tags),
     )
+    tc_analysis = analyze_test_coverage(pg, all_assets)
     analytics["dead_asset_analysis"] = dead_analysis.to_analytics_dict()
-    findings = list(dead_analysis.findings)
-    scores = {"dead_assets": dead_analysis.score}
+    analytics["test_coverage"] = {
+        "asset_count": tc_analysis.total_count,
+        "assets_with_tests": tc_analysis.tested_count,
+        "coverage_ratio": tc_analysis.coverage_ratio,
+    }
+    analytics["test_coverage_analysis"] = tc_analysis.to_analytics_dict()
+    findings = list(dead_analysis.findings) + list(tc_analysis.findings)
+    scores = {
+        "dead_assets": dead_analysis.score,
+        "test_coverage": tc_analysis.score,
+    }
 
     if fmt == "json":
         _ensure_utf8_stdio()
@@ -311,7 +322,8 @@ def scan(
         f"cycles={analytics['cycle_count']}, "
         f"test coverage={tc['assets_with_tests']}/{tc['asset_count']} ({cov_pct}), "
         f"dead-asset score={dad['dead_asset_score']} "
-        f"(analyzed dead={dad['dead_count']}/{dad['total_count']})",
+        f"(analyzed dead={dad['dead_count']}/{dad['total_count']}), "
+        f"test-coverage score={scores['test_coverage']}",
     )
 
 

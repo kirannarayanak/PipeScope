@@ -30,6 +30,7 @@ class ModelMeta:
     has_tests: bool = False
     description: str | None = None
     columns: list[str] = field(default_factory=list)
+    test_richness: str = "ok"  # "ok" | "low" (only not_null-style tests)
 
 
 def parse_dbt_model(file_path: str, content: str) -> tuple[list[Asset], list[Edge]]:
@@ -45,7 +46,7 @@ def parse_dbt_model(file_path: str, content: str) -> tuple[list[Asset], list[Edg
         has_docs=meta.has_docs,
         has_tests=meta.has_tests,
         description=meta.description,
-        tags={"project": project_name},
+        tags={"project": project_name, "test_richness": "ok"},
     )
     assets: list[Asset] = [asset]
     source_assets: dict[str, Asset] = {}
@@ -126,7 +127,7 @@ def parse_dbt_project(root: Path) -> tuple[list[Asset], list[Edge]]:
             has_docs=meta.has_docs,
             has_tests=meta.has_tests,
             description=meta.description,
-            tags={"project": project_name},
+            tags={"project": project_name, "test_richness": meta.test_richness},
         )
         assets.append(asset)
 
@@ -196,6 +197,39 @@ def _collect_schema_metadata(
     return meta_by_model, sources
 
 
+def _extract_test_names_from_tests_block(tests: object) -> list[str]:
+    out: list[str] = []
+    if not isinstance(tests, list):
+        return out
+    for t in tests:
+        if isinstance(t, str):
+            out.append(t)
+        elif isinstance(t, dict):
+            for k in t.keys():
+                out.append(str(k))
+    return out
+
+
+def _richness_from_test_names(names: list[str]) -> str:
+    """``low`` if only not_null-style tests; ``ok`` if uniqueness/relationships/etc."""
+    if not names:
+        return "ok"
+    lowered = [n.lower() for n in names]
+    strong = any(
+        "unique" in n
+        or n in ("unique", "relationships", "accepted_values")
+        or "relationship" in n
+        or "accepted_values" in n
+        or "expression" in n
+        or "dbt_utils" in n
+        for n in lowered
+    )
+    if strong:
+        return "ok"
+    only_null = all("not_null" in n or n.strip() == "not_null" for n in lowered)
+    return "low" if only_null else "ok"
+
+
 def _merge_model_meta(payload: dict, meta_by_model: dict[str, ModelMeta]) -> None:
     models = payload.get("models")
     if not isinstance(models, list):
@@ -214,25 +248,29 @@ def _merge_model_meta(payload: dict, meta_by_model: dict[str, ModelMeta]) -> Non
             meta.description = desc
             meta.has_docs = True
 
+        all_test_names: list[str] = []
         model_tests = entry.get("tests")
         if isinstance(model_tests, list) and model_tests:
             meta.has_tests = True
+            all_test_names.extend(_extract_test_names_from_tests_block(model_tests))
 
         columns = entry.get("columns")
-        if not isinstance(columns, list):
-            continue
-        for col in columns:
-            if not isinstance(col, dict):
-                continue
-            col_name = col.get("name")
-            if isinstance(col_name, str) and col_name not in meta.columns:
-                meta.columns.append(col_name)
-            col_desc = col.get("description")
-            if isinstance(col_desc, str) and col_desc.strip():
-                meta.has_docs = True
-            col_tests = col.get("tests")
-            if isinstance(col_tests, list) and col_tests:
-                meta.has_tests = True
+        if isinstance(columns, list):
+            for col in columns:
+                if not isinstance(col, dict):
+                    continue
+                col_name = col.get("name")
+                if isinstance(col_name, str) and col_name not in meta.columns:
+                    meta.columns.append(col_name)
+                col_desc = col.get("description")
+                if isinstance(col_desc, str) and col_desc.strip():
+                    meta.has_docs = True
+                col_tests = col.get("tests")
+                if isinstance(col_tests, list) and col_tests:
+                    meta.has_tests = True
+                    all_test_names.extend(_extract_test_names_from_tests_block(col_tests))
+
+        meta.test_richness = _richness_from_test_names(all_test_names)
 
 
 def _collect_source_assets(

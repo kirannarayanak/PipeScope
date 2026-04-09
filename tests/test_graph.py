@@ -76,7 +76,7 @@ def test_build_pipeline_graph_matches_build_graph_topology() -> None:
     assert sorted(g.edges()) == sorted(pg.g.edges())
 
 
-def test_compute_scan_analytics_test_coverage() -> None:
+def test_compute_scan_analytics_reports_dead_assets() -> None:
     assets = [
         Asset(name="x", asset_type=AssetType.TABLE, file_path="a.sql", has_tests=True),
         Asset(name="y", asset_type=AssetType.TABLE, file_path="b.sql", has_tests=False),
@@ -85,6 +85,3 @@ def test_compute_scan_analytics_test_coverage() -> None:
     a = compute_scan_analytics(pg, assets)
     assert a["dead_asset_count"] == 1
     assert a["dead_assets"] == ["y"]
-    assert a["test_coverage"]["asset_count"] == 2
-    assert a["test_coverage"]["assets_with_tests"] == 1
-    assert a["test_coverage"]["coverage_ratio"] == 0.5

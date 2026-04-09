@@ -108,14 +108,12 @@ def compute_scan_analytics(
     *,
     fanout_threshold: int = 15,
 ) -> dict[str, Any]:
-    """Dead/orphan assets, fan-out, cycles, critical path, and ``has_tests`` coverage."""
+    """Dead/orphan assets, fan-out, cycles, and critical path (see test-coverage analyzer)."""
     dead = pg.get_dead_assets()
     orphans = pg.get_orphan_assets()
     fanout = pg.get_high_fanout(threshold=fanout_threshold)
     cycles = pg.get_cycles()
     cp = pg.get_critical_path()
-    n = len(assets)
-    with_tests = sum(1 for a in assets if a.has_tests)
     return {
         "dead_asset_count": len(dead),
         "dead_assets": sorted(dead),
@@ -130,11 +128,6 @@ def compute_scan_analytics(
         "cycles": cycles,
         "critical_path_length": len(cp),
         "critical_path": cp,
-        "test_coverage": {
-            "asset_count": n,
-            "assets_with_tests": with_tests,
-            "coverage_ratio": round(with_tests / n, 6) if n else None,
-        },
     }
 
 
