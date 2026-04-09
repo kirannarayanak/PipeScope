@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
+import json
+import os
+import re
 import shutil
+import subprocess
 import sys
 import tempfile
+import urllib.error
+import urllib.request
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 from pipescope import __version__
 from pipescope.analyzers.complexity import analyze_complexity
@@ -209,6 +218,239 @@ def _parsed_dbt_project_count(dbt_roots: list[Path]) -> int:
     return len(dbt_roots)
 
 
+def _build_scan_payload_dict(
+    *,
+    version: str,
+    scan_root: Path,
+    files: list[DiscoveredFile],
+    dbt_roots: set[Path],
+    assets: list[Asset],
+    edges: list[Edge],
+    graph: dict,
+    analytics: dict,
+    findings: list,
+    scores: dict[str, int],
+) -> dict:
+    return {
+        "version": version,
+        "scan_root": str(scan_root),
+        "discovered_file_count": len(files),
+        "parsed_sql_file_count": _parsed_sql_file_count(files, dbt_roots),
+        "parsed_airflow_file_count": _parsed_airflow_file_count(files),
+        "parsed_spark_file_count": _parsed_spark_file_count(files),
+        "parsed_dbt_project_count": _parsed_dbt_project_count(sorted(dbt_roots)),
+        "assets": [a.model_dump(mode="json") for a in assets],
+        "edges": [e.model_dump(mode="json") for e in edges],
+        "graph": graph,
+        "analytics": analytics,
+        "findings": [f.model_dump(mode="json") for f in findings],
+        "scores": dict(scores),
+    }
+
+
+def _write_snapshot(scan_root: Path, payload: dict) -> Path | None:
+    """Write daily + timestamped snapshots and prune old snapshots."""
+    now = datetime.now(tz=UTC)
+    day = now.strftime("%Y-%m-%d")
+    stamp = now.strftime("%Y-%m-%dT%H%M%S_%fZ")
+    snapshot_dir = scan_root / ".pipescope" / "snapshots"
+    try:
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
+        body = json.dumps(payload, indent=2, ensure_ascii=False)
+        daily_snap = snapshot_dir / f"{day}.json"
+        daily_snap.write_text(body, encoding="utf-8")
+        point_in_time = snapshot_dir / f"{stamp}.json"
+        point_in_time.write_text(body, encoding="utf-8")
+        _prune_snapshots(snapshot_dir, _snapshot_retention_days())
+        return daily_snap
+    except OSError:
+        return None
+
+
+def _snapshot_retention_days() -> int:
+    """Retention window for snapshots (env: ``PIPESCOPE_SNAPSHOT_RETENTION_DAYS``)."""
+    raw = os.getenv("PIPESCOPE_SNAPSHOT_RETENTION_DAYS", "30").strip()
+    try:
+        days = int(raw)
+    except ValueError:
+        return 30
+    return max(0, days)
+
+
+def _prune_snapshots(snapshot_dir: Path, retention_days: int) -> None:
+    """Delete timestamped snapshots older than retention window."""
+    if retention_days < 0:
+        return
+    cutoff = datetime.now(tz=UTC) - timedelta(days=retention_days)
+    for snap in snapshot_dir.glob("*.json"):
+        name = snap.name
+        # Keep daily snapshots (YYYY-MM-DD.json) as latest checkpoint for each day.
+        if len(name) == 15 and name[4] == "-" and name[7] == "-" and name.endswith(".json"):
+            continue
+        try:
+            mtime = datetime.fromtimestamp(snap.stat().st_mtime, tz=UTC)
+            if mtime < cutoff:
+                snap.unlink()
+        except OSError:
+            continue
+
+
+def _overall_health_score(scores: dict[str, int]) -> int:
+    positive = [
+        "dead_assets",
+        "test_coverage",
+        "documentation",
+        "ownership",
+        "contracts",
+        "cost_hotspots",
+    ]
+    vals = [scores[k] for k in positive if k in scores]
+    if "complexity" in scores:
+        vals.append(max(0, min(100, 100 - int(scores["complexity"]))))
+    if not vals:
+        return 100
+    return int(round(sum(vals) / len(vals)))
+
+
+def _gha_annotation_prefix(severity: str) -> str:
+    s = (severity or "").lower()
+    if s == "critical":
+        return "error"
+    if s == "warning":
+        return "warning"
+    return "notice"
+
+
+def _emit_github_annotations(findings: list) -> None:
+    for f in findings:
+        sev = _gha_annotation_prefix(getattr(f, "severity", "info"))
+        cat = getattr(f, "category", "")
+        asset = getattr(f, "asset_name", "")
+        msg = getattr(f, "message", "")
+        print(f"::{sev} title=PipeScope::{cat} [{asset}] {msg}")
+
+
+def _github_pr_number_from_env() -> int | None:
+    ref = os.getenv("GITHUB_REF", "").strip()
+    m = re.match(r"^refs/pull/(\d+)/(?:merge|head)$", ref)
+    if m:
+        return int(m.group(1))
+    return None
+
+
+def _post_pr_comment_if_possible(score: int, threshold: int, findings_count: int) -> bool:
+    token = os.getenv("GITHUB_TOKEN", "").strip()
+    repo = os.getenv("GITHUB_REPOSITORY", "").strip()
+    pr = _github_pr_number_from_env()
+    if not token or not repo or not pr:
+        return False
+    body = {
+        "body": (
+            f"PipeScope CI result\n\n"
+            f"- Overall score: **{score}**\n"
+            f"- Threshold: **{threshold}**\n"
+            f"- Findings: **{findings_count}**"
+        )
+    }
+    req = urllib.request.Request(
+        url=f"https://api.github.com/repos/{repo}/issues/{pr}/comments",
+        data=json.dumps(body).encode("utf-8"),
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "pipescope-cli",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8):
+            return True
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError):
+        return False
+
+
+def _compute_scan_artifacts(
+    *,
+    root: Path,
+    dialect: str | None,
+    dead_asset_whitelist: str | None,
+    dead_asset_terminal_tags: str | None,
+    test_coverage_critical_deps: int,
+) -> tuple[list[DiscoveredFile], list[Asset], list[Edge], dict, dict, list]:
+    """Run full scan/analyzer pipeline and return core artifacts."""
+    files, all_assets, all_edges, parsed_contracts = collect_scan(root, dialect)
+    dbt_roots = set(_collect_dbt_project_roots(root, files))
+    pg = build_pipeline_graph(all_assets, all_edges)
+    summary = graph_summary(pg.g)
+    analytics = compute_scan_analytics(pg, all_assets)
+    dead_analysis = analyze_dead_assets(
+        pg,
+        all_assets,
+        whitelist=parse_dead_asset_whitelist_cli(dead_asset_whitelist),
+        terminal_tag_markers=parse_dead_asset_terminal_tags_cli(dead_asset_terminal_tags),
+    )
+    tc_analysis = analyze_test_coverage(
+        pg,
+        all_assets,
+        critical_downstream_threshold=test_coverage_critical_deps,
+    )
+    doc_analysis = analyze_documentation_coverage(all_assets)
+    cx_analysis = analyze_complexity(pg, all_assets, root, dialect)
+    own_analysis = analyze_ownership(all_assets, root)
+    cc_analysis = analyze_contract_compliance(pg, all_assets, parsed_contracts)
+    ch_analysis = analyze_cost_hotspots(pg, all_assets, root, dialect)
+
+    analytics["dead_asset_analysis"] = dead_analysis.to_analytics_dict()
+    analytics["test_coverage"] = {
+        "asset_count": tc_analysis.total_count,
+        "assets_with_tests": tc_analysis.tested_count,
+        "coverage_ratio": tc_analysis.coverage_ratio,
+    }
+    analytics["test_coverage_analysis"] = tc_analysis.to_analytics_dict()
+    analytics["documentation_coverage"] = {
+        "asset_count": doc_analysis.total_count,
+        "documented_count": doc_analysis.documented_count,
+        "coverage_ratio": doc_analysis.coverage_ratio,
+    }
+    analytics["documentation_coverage_analysis"] = doc_analysis.to_analytics_dict()
+    analytics["complexity_analysis"] = cx_analysis.to_analytics_dict()
+    analytics["ownership_analysis"] = own_analysis.to_analytics_dict()
+    analytics["contract_compliance_analysis"] = cc_analysis.to_analytics_dict()
+    analytics["cost_hotspot_analysis"] = ch_analysis.to_analytics_dict()
+    findings = (
+        list(dead_analysis.findings)
+        + list(tc_analysis.findings)
+        + list(doc_analysis.findings)
+        + list(cx_analysis.findings)
+        + list(own_analysis.findings)
+        + list(cc_analysis.findings)
+        + list(ch_analysis.findings)
+    )
+    scores = {
+        "dead_assets": dead_analysis.score,
+        "test_coverage": tc_analysis.score,
+        "documentation": doc_analysis.score,
+        "complexity": cx_analysis.pipeline_score,
+        "ownership": own_analysis.score,
+        "contracts": cc_analysis.score,
+        "cost_hotspots": ch_analysis.score,
+    }
+    payload_dict = _build_scan_payload_dict(
+        version=__version__,
+        scan_root=root,
+        files=files,
+        dbt_roots=dbt_roots,
+        assets=all_assets,
+        edges=all_edges,
+        graph=summary,
+        analytics=analytics,
+        findings=findings,
+        scores=scores,
+    )
+    return files, all_assets, all_edges, payload_dict, scores, findings
+
+
 @app.command()
 def scan(
     path: str = typer.Argument(".", help="Path to scan."),
@@ -255,63 +497,17 @@ def scan(
         raise typer.BadParameter("--test-coverage-critical-deps must be >= 0")
 
     root = Path(path).resolve()
-    files, all_assets, all_edges, parsed_contracts = collect_scan(root, dialect)
+    files, all_assets, all_edges, payload_dict, scores, findings = _compute_scan_artifacts(
+        root=root,
+        dialect=dialect,
+        dead_asset_whitelist=dead_asset_whitelist,
+        dead_asset_terminal_tags=dead_asset_terminal_tags,
+        test_coverage_critical_deps=test_coverage_critical_deps,
+    )
+    summary = payload_dict["graph"]
+    analytics = payload_dict["analytics"]
     dbt_roots = set(_collect_dbt_project_roots(root, files))
-
-    pg = build_pipeline_graph(all_assets, all_edges)
-    summary = graph_summary(pg.g)
-    analytics = compute_scan_analytics(pg, all_assets)
-    dead_analysis = analyze_dead_assets(
-        pg,
-        all_assets,
-        whitelist=parse_dead_asset_whitelist_cli(dead_asset_whitelist),
-        terminal_tag_markers=parse_dead_asset_terminal_tags_cli(dead_asset_terminal_tags),
-    )
-    tc_analysis = analyze_test_coverage(
-        pg,
-        all_assets,
-        critical_downstream_threshold=test_coverage_critical_deps,
-    )
-    doc_analysis = analyze_documentation_coverage(all_assets)
-    cx_analysis = analyze_complexity(pg, all_assets, root, dialect)
-    own_analysis = analyze_ownership(all_assets, root)
-    cc_analysis = analyze_contract_compliance(pg, all_assets, parsed_contracts)
-    ch_analysis = analyze_cost_hotspots(pg, all_assets, root, dialect)
-    analytics["dead_asset_analysis"] = dead_analysis.to_analytics_dict()
-    analytics["test_coverage"] = {
-        "asset_count": tc_analysis.total_count,
-        "assets_with_tests": tc_analysis.tested_count,
-        "coverage_ratio": tc_analysis.coverage_ratio,
-    }
-    analytics["test_coverage_analysis"] = tc_analysis.to_analytics_dict()
-    analytics["documentation_coverage"] = {
-        "asset_count": doc_analysis.total_count,
-        "documented_count": doc_analysis.documented_count,
-        "coverage_ratio": doc_analysis.coverage_ratio,
-    }
-    analytics["documentation_coverage_analysis"] = doc_analysis.to_analytics_dict()
-    analytics["complexity_analysis"] = cx_analysis.to_analytics_dict()
-    analytics["ownership_analysis"] = own_analysis.to_analytics_dict()
-    analytics["contract_compliance_analysis"] = cc_analysis.to_analytics_dict()
-    analytics["cost_hotspot_analysis"] = ch_analysis.to_analytics_dict()
-    findings = (
-        list(dead_analysis.findings)
-        + list(tc_analysis.findings)
-        + list(doc_analysis.findings)
-        + list(cx_analysis.findings)
-        + list(own_analysis.findings)
-        + list(cc_analysis.findings)
-        + list(ch_analysis.findings)
-    )
-    scores = {
-        "dead_assets": dead_analysis.score,
-        "test_coverage": tc_analysis.score,
-        "documentation": doc_analysis.score,
-        "complexity": cx_analysis.pipeline_score,
-        "ownership": own_analysis.score,
-        "contracts": cc_analysis.score,
-        "cost_hotspots": ch_analysis.score,
-    }
+    _write_snapshot(root, payload_dict)
 
     if fmt == "json":
         _ensure_utf8_stdio()
@@ -340,14 +536,7 @@ def scan(
     html_report_path = Path(tempfile.gettempdir()) / "pipescope-report.html"
     write_report(
         html_report_path,
-        {
-            "version": __version__,
-            "scan_root": str(root),
-            "graph": summary,
-            "scores": scores,
-            "analytics": analytics,
-            "findings": [f.model_dump(mode="json") for f in findings],
-        },
+        payload_dict,
     )
     print_terminal_report(
         console,
@@ -361,6 +550,188 @@ def scan(
         findings=findings,
         html_report_path=str(html_report_path),
     )
+
+
+@app.command()
+def diff(
+    ref: str = typer.Argument("HEAD~1", help="Git ref to compare against (e.g. HEAD~1)."),
+    path: str = typer.Option(".", "--path", help="Repository root path."),
+    dialect: str | None = typer.Option(
+        None,
+        "--dialect",
+        "-d",
+        help="SQL dialect (snowflake, bigquery, postgres, etc.).",
+    ),
+) -> None:
+    """Diff current scan results against a previous git ref."""
+    root = Path(path).resolve()
+    _ensure_utf8_stdio()
+    console = _make_console()
+
+    # Validate git repository first.
+    chk = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"],
+        capture_output=True,
+        text=True,
+    )
+    if chk.returncode != 0:
+        raise typer.BadParameter("diff requires a git repository at --path")
+
+    console.print(f"[bold]Comparing current workspace vs {ref}[/]")
+    (
+        _cur_files,
+        cur_assets,
+        _cur_edges,
+        _cur_payload,
+        _cur_scores,
+        cur_findings,
+    ) = _compute_scan_artifacts(
+        root=root,
+        dialect=dialect,
+        dead_asset_whitelist=None,
+        dead_asset_terminal_tags=None,
+        test_coverage_critical_deps=10,
+    )
+
+    with tempfile.TemporaryDirectory(prefix="pipescope-diff-") as tmp:
+        worktree = Path(tmp) / "repo"
+        add_cmd = [
+            "git",
+            "-C",
+            str(root),
+            "worktree",
+            "add",
+            "--detach",
+            str(worktree),
+            ref,
+        ]
+        add = subprocess.run(add_cmd, capture_output=True, text=True)
+        if add.returncode != 0:
+            raise typer.BadParameter(f"failed to checkout ref {ref}: {add.stderr.strip()}")
+
+        try:
+            _prev_files, prev_assets, _prev_edges, _prev_payload, _prev_scores, prev_findings = (
+                _compute_scan_artifacts(
+                    root=worktree,
+                    dialect=dialect,
+                    dead_asset_whitelist=None,
+                    dead_asset_terminal_tags=None,
+                    test_coverage_critical_deps=10,
+                )
+            )
+        finally:
+            subprocess.run(
+                ["git", "-C", str(root), "worktree", "remove", "--force", str(worktree)],
+                capture_output=True,
+                text=True,
+            )
+
+    cur_asset_names = {a.name for a in cur_assets}
+    prev_asset_names = {a.name for a in prev_assets}
+    new_assets = sorted(cur_asset_names - prev_asset_names)
+    removed_assets = sorted(prev_asset_names - cur_asset_names)
+
+    def _fkey(f: object) -> tuple:
+        return (
+            getattr(f, "severity", ""),
+            getattr(f, "category", ""),
+            getattr(f, "asset_name", ""),
+            getattr(f, "message", ""),
+        )
+
+    cur_f = {_fkey(f) for f in cur_findings}
+    prev_f = {_fkey(f) for f in prev_findings}
+    new_findings = sorted(cur_f - prev_f)
+    resolved_findings = sorted(prev_f - cur_f)
+
+    summary_tbl = Table(title="Diff summary", show_header=True, header_style="bold")
+    summary_tbl.add_column("Metric", style="cyan")
+    summary_tbl.add_column("Count", justify="right")
+    summary_tbl.add_row("New assets", str(len(new_assets)))
+    summary_tbl.add_row("Removed assets", str(len(removed_assets)))
+    summary_tbl.add_row("New findings", str(len(new_findings)))
+    summary_tbl.add_row("Resolved findings", str(len(resolved_findings)))
+    console.print(summary_tbl)
+
+    def _print_list(title: str, rows: list[str], color: str) -> None:
+        t = Table(title=title, show_header=True, header_style="bold")
+        t.add_column("Item", style=color, overflow="fold")
+        for r in rows[:30]:
+            t.add_row(r)
+        if len(rows) > 30:
+            t.add_row(f"... +{len(rows)-30} more")
+        console.print(t)
+
+    _print_list("New assets", new_assets, "green")
+    _print_list("Removed assets", removed_assets, "red")
+
+    nf = Table(title="New findings", show_header=True, header_style="bold")
+    nf.add_column("Severity", style="yellow")
+    nf.add_column("Category", style="cyan")
+    nf.add_column("Asset")
+    nf.add_column("Message", overflow="fold")
+    for sev, cat, asset, msg in new_findings[:30]:
+        nf.add_row(str(sev), str(cat), str(asset), str(msg))
+    if len(new_findings) > 30:
+        nf.add_row("...", "...", "...", f"+{len(new_findings)-30} more")
+    console.print(nf)
+
+    rf = Table(title="Resolved findings", show_header=True, header_style="bold")
+    rf.add_column("Severity", style="blue")
+    rf.add_column("Category", style="cyan")
+    rf.add_column("Asset")
+    rf.add_column("Message", overflow="fold")
+    for sev, cat, asset, msg in resolved_findings[:30]:
+        rf.add_row(str(sev), str(cat), str(asset), str(msg))
+    if len(resolved_findings) > 30:
+        rf.add_row("...", "...", "...", f"+{len(resolved_findings)-30} more")
+    console.print(rf)
+    console.print(
+        Panel(
+            f"[bold]Compared[/] current vs [bold]{ref}[/] at {root}",
+            border_style="dim",
+        )
+    )
+
+
+@app.command()
+def ci(
+    threshold: int = typer.Option(
+        70,
+        "--threshold",
+        help="Fail build when overall score is below this value (0-100).",
+    ),
+    path: str = typer.Option(".", "--path", help="Path to scan."),
+    dialect: str | None = typer.Option(
+        None,
+        "--dialect",
+        "-d",
+        help="SQL dialect (snowflake, bigquery, postgres, etc.).",
+    ),
+) -> None:
+    """CI mode: run scan, emit annotations, and fail below threshold."""
+    if threshold < 0 or threshold > 100:
+        raise typer.BadParameter("--threshold must be between 0 and 100")
+    root = Path(path).resolve()
+    _files, _assets, _edges, payload, scores, findings = _compute_scan_artifacts(
+        root=root,
+        dialect=dialect,
+        dead_asset_whitelist=None,
+        dead_asset_terminal_tags=None,
+        test_coverage_critical_deps=10,
+    )
+    _write_snapshot(root, payload)
+    overall = _overall_health_score(scores)
+
+    _ensure_utf8_stdio()
+    print(f"PipeScope overall score: {overall} (threshold: {threshold})")
+    _emit_github_annotations(findings)
+    posted = _post_pr_comment_if_possible(overall, threshold, len(findings))
+    if posted:
+        print("Posted PipeScope score comment to PR.")
+
+    if overall < threshold:
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

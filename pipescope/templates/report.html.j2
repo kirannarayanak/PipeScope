@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PipeScope Report - {{ project_name }}</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a30;
+      --panel-2: #1a2545;
+      --txt: #e9eefc;
+      --muted: #9fb0d8;
+      --good: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --info: #3b82f6;
+      --border: #2b3b69;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      color: var(--txt);
+      background: radial-gradient(circle at 20% 10%, #18254b, var(--bg) 35%), var(--bg);
+    }
+    .wrap { max-width: 1300px; margin: 0 auto; padding: 24px; }
+    .header {
+      background: linear-gradient(120deg, #1a2d5e, #182247);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .meta h1 { margin: 0 0 6px 0; font-size: 28px; }
+    .meta p { margin: 0; color: var(--muted); }
+    .overall {
+      min-width: 180px;
+      text-align: center;
+      border-radius: 12px;
+      padding: 12px 16px;
+      border: 2px solid transparent;
+      background: #101a35;
+    }
+    .overall.good { border-color: var(--good); color: var(--good); }
+    .overall.warn { border-color: var(--warn); color: var(--warn); }
+    .overall.bad { border-color: var(--bad); color: var(--bad); }
+    .overall .n { font-size: 36px; font-weight: 800; line-height: 1; }
+    .overall .t { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .cards {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      margin-bottom: 18px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .card .k { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .card .v { font-size: 24px; font-weight: 700; }
+    .card.good .v { color: var(--good); }
+    .card.warn .v { color: var(--warn); }
+    .card.bad .v { color: var(--bad); }
+    .grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: 1.2fr 1fr;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 1024px) { .grid { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .panel h2 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      color: #d7e2ff;
+      letter-spacing: .2px;
+    }
+    #graph-wrap { position: relative; }
+    #graph {
+      height: 420px;
+      border-radius: 10px;
+      background: #0a132b;
+      border: 1px solid #213360;
+      cursor: grab;
+    }
+    #graph:active { cursor: grabbing; }
+    .graph-tip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(8, 14, 30, 0.95);
+      border: 1px solid #355292;
+      color: #e8f0ff;
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 12px;
+      max-width: 280px;
+      display: none;
+      z-index: 5;
+    }
+    .graph-help {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .node-details {
+      margin-top: 8px;
+      border: 1px solid #2a3c6a;
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: #0f1b39;
+      color: #dbe7ff;
+      font-size: 12px;
+      min-height: 44px;
+      white-space: pre-wrap;
+    }
+    #trend { width: 100%; height: 260px; border-radius: 10px; background: #0a132b; border: 1px solid #213360; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #22345f;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      cursor: pointer;
+      color: #bed0fa;
+      background: #101a35;
+      position: sticky;
+      top: 0;
+      user-select: none;
+    }
+    tr:hover td { background: #111f42; }
+    .sev-critical { color: var(--bad); font-weight: 700; }
+    .sev-warning { color: var(--warn); font-weight: 700; }
+    .sev-info { color: var(--info); font-weight: 700; }
+    .footer {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="header">
+      <div class="meta">
+        <h1>PipeScope Report - {{ project_name }}</h1>
+        <p>{{ scan_date }} | {{ scan_root }}</p>
+      </div>
+      <div class="overall {{ overall_tone }}">
+        <div class="n">{{ overall_score }}/100</div>
+        <div class="t">Overall Health</div>
+      </div>
+    </section>
+
+    <section class="cards">
+      {% for c in score_cards %}
+      <article class="card {{ c.tone }}">
+        <div class="k">{{ c.label }}</div>
+        <div class="v">{{ c.score }}/100</div>
+      </article>
+      {% endfor %}
+    </section>
+
+    <section class="grid">
+      <article class="panel">
+        <h2>Lineage Graph</h2>
+        <div id="graph-wrap">
+          <svg id="graph"></svg>
+          <div id="graph-tip" class="graph-tip"></div>
+        </div>
+        <div class="graph-help">Drag nodes, pan by dragging background, zoom with mouse wheel.</div>
+        <div id="node-details" class="node-details">Click a node to view details.</div>
+      </article>
+      <article class="panel">
+        <h2>Score Trend</h2>
+        <svg id="trend"></svg>
+      </article>
+    </section>
+
+    <section class="panel">
+      <h2>Findings</h2>
+      <div style="max-height: 420px; overflow: auto;">
+        <table id="findings-table">
+          <thead>
+            <tr>
+              <th data-col="severity">Severity</th>
+              <th data-col="category">Category</th>
+              <th data-col="asset_name">Asset</th>
+              <th data-col="message">Message</th>
+              <th data-col="file_path">File</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in findings %}
+            <tr>
+              <td class="sev-{{ f.severity|lower }}">{{ f.severity|upper }}</td>
+              <td>{{ f.category }}</td>
+              <td>{{ f.asset_name }}</td>
+              <td>{{ f.message }}</td>
+              <td>{{ f.file_path or "" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <div class="footer">Generated by PipeScope</div>
+  </div>
+
+  <script id="graph-data" type="application/json">{{ graph_json }}</script>
+  <script id="trend-data" type="application/json">{{ trend_json }}</script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script>
+    (() => {
+      const graphData = JSON.parse(document.getElementById("graph-data").textContent || '{"nodes":[],"links":[]}');
+      const trendData = JSON.parse(document.getElementById("trend-data").textContent || "[]");
+
+      // Findings table sorting.
+      const table = document.getElementById("findings-table");
+      const tbody = table.querySelector("tbody");
+      const headers = Array.from(table.querySelectorAll("th"));
+      const sevOrder = { CRITICAL: 0, WARNING: 1, INFO: 2 };
+      headers.forEach((th, idx) => {
+        let asc = true;
+        th.addEventListener("click", () => {
+          const rows = Array.from(tbody.querySelectorAll("tr"));
+          rows.sort((a, b) => {
+            let va = a.children[idx].textContent.trim();
+            let vb = b.children[idx].textContent.trim();
+            if (th.dataset.col === "severity") {
+              va = sevOrder[va] ?? 9;
+              vb = sevOrder[vb] ?? 9;
+              return asc ? va - vb : vb - va;
+            }
+            return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+          });
+          asc = !asc;
+          rows.forEach(r => tbody.appendChild(r));
+        });
+      });
+
+      // Force-directed lineage graph (D3 v7).
+      const svg = document.getElementById("graph");
+      const tip = document.getElementById("graph-tip");
+      const nodeDetails = document.getElementById("node-details");
+      const W = svg.clientWidth || 900;
+      const H = svg.clientHeight || 420;
+      const nodeColor = (t) => {
+        if ((t || "").includes("dbt_model")) return "#60a5fa";
+        if ((t || "").includes("dbt_source")) return "#a78bfa";
+        if ((t || "").includes("airflow")) return "#22c55e";
+        if ((t || "").includes("spark")) return "#f59e0b";
+        if ((t || "").includes("table") || (t || "").includes("view")) return "#34d399";
+        return "#94a3b8";
+      };
+      const graphSvg = d3.select(svg).attr("viewBox", [0, 0, W, H]);
+      const viewport = graphSvg.append("g");
+      const link = viewport.append("g")
+        .attr("stroke", "#4c67a6")
+        .attr("stroke-opacity", 0.7)
+        .selectAll("line")
+        .data(graphData.links)
+        .join("line")
+        .attr("stroke-width", 1.2);
+
+      const importanceExtent = d3.extent(graphData.nodes, d => Number(d.importance || 0));
+      const rScale = d3.scaleLinear()
+        .domain([importanceExtent[0] ?? 0, importanceExtent[1] ?? 1])
+        .range([4.5, 13.5]);
+
+      const node = viewport.append("g")
+        .selectAll("circle")
+        .data(graphData.nodes)
+        .join("circle")
+        .attr("r", d => rScale(Number(d.importance || 0)))
+        .attr("fill", d => nodeColor(d.type))
+        .attr("stroke", "#dbe7ff")
+        .attr("stroke-width", 0.8)
+        .style("cursor", "pointer");
+
+      const sim = d3.forceSimulation(graphData.nodes)
+        .force("link", d3.forceLink(graphData.links).id(d => d.id).distance(85).strength(0.7))
+        .force("charge", d3.forceManyBody().strength(-180))
+        .force("center", d3.forceCenter(W / 2, H / 2))
+        .force("collide", d3.forceCollide().radius(d => rScale(Number(d.importance || 0)) + 2))
+        .on("tick", () => {
+          link
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+          node
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y);
+        });
+
+      graphSvg.call(
+        d3.zoom().scaleExtent([0.35, 3.2]).on("zoom", (event) => {
+          viewport.attr("transform", event.transform);
+        })
+      );
+
+      node.call(
+        d3.drag()
+          .on("start", (event, d) => {
+            if (!event.active) sim.alphaTarget(0.2).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+          })
+          .on("drag", (event, d) => {
+            d.fx = event.x;
+            d.fy = event.y;
+          })
+          .on("end", (event, d) => {
+            if (!event.active) sim.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+          })
+      );
+
+      const adjacency = new Set(graphData.links.map(l => `${l.source}|${l.target}`));
+      function linked(a, b) {
+        return a.id === b.id || adjacency.has(`${a.id}|${b.id}`) || adjacency.has(`${b.id}|${a.id}`);
+      }
+
+      node
+        .on("mouseenter", (event, d) => {
+          tip.style.display = "block";
+          tip.innerHTML = `<b>${d.id}</b><br/>${d.type}<br/>${d.file || ""}<br/>downstream: ${d.importance ?? 0}`;
+          tip.style.left = `${event.offsetX + 14}px`;
+          tip.style.top = `${event.offsetY + 14}px`;
+        })
+        .on("mousemove", (event) => {
+          tip.style.left = `${event.offsetX + 14}px`;
+          tip.style.top = `${event.offsetY + 14}px`;
+        })
+        .on("mouseleave", () => {
+          tip.style.display = "none";
+        })
+        .on("click", (event, d) => {
+          event.stopPropagation();
+          nodeDetails.textContent =
+            `Node: ${d.id}\nType: ${d.type}\nFile: ${d.file || "-"}\nDownstream impact: ${d.importance ?? 0}`;
+          node.attr("opacity", n => linked(d, n) ? 1 : 0.2);
+          link.attr("stroke-opacity", l => (l.source.id === d.id || l.target.id === d.id) ? 0.95 : 0.1);
+        });
+      graphSvg.on("click", () => {
+        node.attr("opacity", 1);
+        link.attr("stroke-opacity", 0.7);
+        nodeDetails.textContent = "Click a node to view details.";
+      });
+
+      // Trend chart.
+      const ns = "http://www.w3.org/2000/svg";
+      const trendSvg = document.getElementById("trend");
+      const TW = trendSvg.clientWidth || 600, TH = trendSvg.clientHeight || 260;
+      trendSvg.setAttribute("viewBox", `0 0 ${TW} ${TH}`);
+      const pad = { l: 40, r: 16, t: 18, b: 28 };
+      const vals = trendData.map((d, i) => ({ x: i, y: Number(d.overall || 0), d }));
+      if (vals.length >= 1) {
+        const xMax = Math.max(1, vals.length - 1);
+        const x = v => pad.l + (v / xMax) * (TW - pad.l - pad.r);
+        const y = v => pad.t + (100 - v) / 100 * (TH - pad.t - pad.b);
+        for (let t = 0; t <= 100; t += 20) {
+          const gy = y(t);
+          const gl = document.createElementNS(ns, "line");
+          gl.setAttribute("x1", pad.l);
+          gl.setAttribute("x2", TW - pad.r);
+          gl.setAttribute("y1", gy);
+          gl.setAttribute("y2", gy);
+          gl.setAttribute("stroke", "#233765");
+          gl.setAttribute("stroke-width", "1");
+          trendSvg.appendChild(gl);
+          const lbl = document.createElementNS(ns, "text");
+          lbl.setAttribute("x", "6");
+          lbl.setAttribute("y", `${gy + 4}`);
+          lbl.setAttribute("fill", "#9fb0d8");
+          lbl.setAttribute("font-size", "10");
+          lbl.textContent = `${t}`;
+          trendSvg.appendChild(lbl);
+        }
+        const axis = document.createElementNS(ns, "path");
+        axis.setAttribute("d", `M${pad.l},${pad.t} V${TH - pad.b} H${TW - pad.r}`);
+        axis.setAttribute("stroke", "#47639e");
+        axis.setAttribute("fill", "none");
+        trendSvg.appendChild(axis);
+        const path = document.createElementNS(ns, "path");
+        const d = vals.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.x)},${y(p.y)}`).join(" ");
+        path.setAttribute("d", d);
+        path.setAttribute("stroke", "#22c55e");
+        path.setAttribute("stroke-width", "2");
+        path.setAttribute("fill", "none");
+        trendSvg.appendChild(path);
+        vals.forEach(p => {
+          const c = document.createElementNS(ns, "circle");
+          c.setAttribute("cx", x(p.x)); c.setAttribute("cy", y(p.y));
+          c.setAttribute("r", "3.5");
+          c.setAttribute("fill", "#60a5fa");
+          c.innerHTML = `<title>${(p.d.scan_date || "").slice(0, 10)}: ${p.y}</title>`;
+          trendSvg.appendChild(c);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

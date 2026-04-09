@@ -1,0 +1,26 @@
+name: PipeScope
+description: Static analysis for data pipelines
+inputs:
+  path:
+    default: "."
+    description: Path to scan
+  threshold:
+    default: "0"
+    description: Min score to pass
+  dialect:
+    default: ""
+    description: SQL dialect
+runs:
+  using: composite
+  steps:
+    - name: Install PipeScope
+      shell: bash
+      run: pip install pipescope
+    - name: Run PipeScope CI gate
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.dialect }}" ]; then
+          pipescope ci --threshold "${{ inputs.threshold }}" --path "${{ inputs.path }}" --dialect "${{ inputs.dialect }}"
+        else
+          pipescope ci --threshold "${{ inputs.threshold }}" --path "${{ inputs.path }}"
+        fi

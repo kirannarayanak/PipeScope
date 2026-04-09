@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
+import pipescope.cli as cli_mod
 from pipescope.cli import app
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -132,6 +136,55 @@ def test_scan_json_includes_airflow_parse_count(runner: CliRunner) -> None:
     assert "dbt_model" in types or "dbt_source" in types
 
 
+def test_scan_writes_snapshot_file(runner: CliRunner, tmp_path: Path) -> None:
+    src = FIXTURES / "scanner_sample"
+    scan_root = tmp_path / "scan_root"
+    shutil.copytree(src, scan_root)
+
+    result = runner.invoke(
+        app,
+        ["scan", str(scan_root), "--format", "json", "--dialect", "postgres"],
+        color=False,
+        env={"PYTHONUTF8": "1"},
+    )
+    assert result.exit_code == 0, result.stderr
+
+    day = datetime.now().strftime("%Y-%m-%d")
+    snap = scan_root / ".pipescope" / "snapshots" / f"{day}.json"
+    assert snap.is_file()
+    snapshots_dir = scan_root / ".pipescope" / "snapshots"
+    stamped = [
+        p
+        for p in snapshots_dir.glob("*.json")
+        if p.name != f"{day}.json"
+    ]
+    assert stamped, "expected timestamped snapshot files in addition to daily snapshot"
+    data = json.loads(snap.read_text(encoding="utf-8"))
+    assert "scores" in data and "graph" in data and "findings" in data
+
+
+def test_scan_prunes_old_timestamped_snapshots(runner: CliRunner, tmp_path: Path) -> None:
+    src = FIXTURES / "scanner_sample"
+    scan_root = tmp_path / "scan_root_prune"
+    shutil.copytree(src, scan_root)
+    snapshots_dir = scan_root / ".pipescope" / "snapshots"
+    snapshots_dir.mkdir(parents=True, exist_ok=True)
+    old_file = snapshots_dir / "2000-01-01T000000_000000Z.json"
+    old_file.write_text("{}", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        ["scan", str(scan_root), "--format", "json", "--dialect", "postgres"],
+        color=False,
+        env={
+            "PYTHONUTF8": "1",
+            "PIPESCOPE_SNAPSHOT_RETENTION_DAYS": "0",
+        },
+    )
+    assert result.exit_code == 0, result.stderr
+    assert not old_file.exists()
+
+
 def test_scan_dead_asset_whitelist_cli(runner: CliRunner) -> None:
     """Whitelisting a sink removes it from dead-asset findings."""
     dbt_root = str((FIXTURES / "dbt_sample").resolve())
@@ -169,3 +222,92 @@ def test_scan_dbt_sample_lineage_from_dbt_parser(runner: CliRunner) -> None:
     edges = {(e["source"], e["target"]) for e in data["edges"]}
     assert ("stg_events", "fct_sessions") in edges
     assert ("raw.events", "stg_events") in edges
+
+
+def test_diff_command_outputs_clean_tables(runner: CliRunner, tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    sql_file = repo / "model.sql"
+    sql_file.write_text("CREATE TABLE a AS SELECT 1 AS id;", encoding="utf-8")
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "init",
+        ],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    sql_file.write_text("CREATE TABLE a AS SELECT 2 AS id;", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True, text=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            "second",
+        ],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    sql_file.write_text("CREATE TABLE a AS SELECT * FROM t;", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        ["diff", "HEAD~1", "--path", str(repo), "--dialect", "postgres"],
+        color=False,
+        env={"PYTHONUTF8": "1"},
+    )
+    assert result.exit_code == 0, result.stdout + result.stderr
+    out = result.stdout
+    assert "Diff summary" in out
+    assert "New findings" in out
+    assert "Resolved findings" in out
+
+
+def test_ci_command_emits_annotations_and_passes(
+    runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cli_mod, "_post_pr_comment_if_possible", lambda *_args: False)
+    monkeypatch.setattr(cli_mod, "_overall_health_score", lambda _scores: 90)
+    result = runner.invoke(
+        app,
+        ["ci", "--path", str(FIXTURES.resolve()), "--threshold", "70", "--dialect", "postgres"],
+        color=False,
+        env={"PYTHONUTF8": "1"},
+    )
+    assert result.exit_code == 0, result.stdout + result.stderr
+    out = result.stdout
+    assert "PipeScope overall score: 90" in out
+    assert "::warning title=PipeScope::" in out or "::notice title=PipeScope::" in out
+
+
+def test_ci_command_fails_build_below_threshold(
+    runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cli_mod, "_post_pr_comment_if_possible", lambda *_args: False)
+    monkeypatch.setattr(cli_mod, "_overall_health_score", lambda _scores: 10)
+    result = runner.invoke(
+        app,
+        ["ci", "--path", str(FIXTURES.resolve()), "--threshold", "70", "--dialect", "postgres"],
+        color=False,
+        env={"PYTHONUTF8": "1"},
+    )
+    assert result.exit_code == 1
