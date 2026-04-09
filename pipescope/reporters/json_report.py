@@ -30,7 +30,13 @@ def format_scan_json(
     findings: list[Finding] | None = None,
     scores: dict[str, int] | None = None,
 ) -> str:
-    """Build a single JSON document for ``pipescope scan --format json``."""
+    """Build a single JSON document for ``pipescope scan --format json``.
+
+    ``analytics`` may include graph summaries, ``dead_asset_analysis``, test and
+    documentation coverage, ``complexity_analysis``, ``ownership_analysis``,
+    ``contract_compliance_analysis``, ``cost_hotspot_analysis``, etc.
+    ``scores`` maps dimension names (e.g. ``dead_assets``, ``ownership``) to 0–100.
+    """
     payload: dict[str, Any] = {
         "version": version,
         "scan_root": scan_root,

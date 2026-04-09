@@ -65,13 +65,14 @@ def parse_sql_file(
                 asset_type = AssetType.TABLE
             else:
                 continue
-            columns = _extract_columns_from_create(stmt)
+            columns, column_types = _extract_columns_and_types_from_create(stmt)
             assets.append(
                 Asset(
                     name=name,
                     asset_type=asset_type,
                     file_path=file_path,
                     columns=columns,
+                    column_types=column_types,
                     has_docs=file_has_docs,
                 )
             )
@@ -144,16 +145,29 @@ def _extract_source_tables(
     return tables
 
 
-def _extract_columns_from_create(stmt: exp.Expression) -> list[str]:
-    """Column names from CREATE TABLE (...)."""
+def _extract_columns_and_types_from_create(
+    stmt: exp.Expression,
+) -> tuple[list[str], dict[str, str]]:
+    """Column names and SQL types from ``CREATE TABLE`` / ``CREATE VIEW`` column defs."""
     columns: list[str] = []
+    types: dict[str, str] = {}
     for col_def in stmt.find_all(exp.ColumnDef):
         col_name = col_def.name
-        if isinstance(col_name, str):
-            columns.append(col_name)
-        elif isinstance(col_name, exp.Identifier):
-            columns.append(col_name.name)
-    return columns
+        if isinstance(col_name, exp.Identifier):
+            col_name = col_name.name
+        elif not isinstance(col_name, str):
+            continue
+        columns.append(col_name)
+        kind = col_def.args.get("kind")
+        if kind is not None:
+            types[col_name] = kind.sql()
+    return columns, types
+
+
+def _extract_columns_from_create(stmt: exp.Expression) -> list[str]:
+    """Column names from CREATE TABLE (...)."""
+    cols, _types = _extract_columns_and_types_from_create(stmt)
+    return cols
 
 
 def detect_cost_patterns(content: str, dialect: str | None = None) -> list[str]:
@@ -185,5 +199,70 @@ def detect_cost_patterns(content: str, dialect: str | None = None) -> list[str]:
         if isinstance(stmt, exp.Delete | exp.Update) and not stmt.find(exp.Where):
             patterns.append("MISSING_WHERE_CLAUSE")
 
+        if isinstance(stmt, exp.Select):
+            if stmt.find(exp.From) and not stmt.find(exp.Where):
+                patterns.append("SELECT_WITHOUT_WHERE")
+            if stmt.find(exp.From) and not stmt.args.get("limit") and not stmt.args.get("fetch"):
+                patterns.append("NO_LIMIT")
+
     # Preserve order, drop duplicates
     return list(dict.fromkeys(patterns))
+
+
+def _resolve_partition_column(table_name: str, partition_map: dict[str, str]) -> str | None:
+    if table_name in partition_map:
+        return partition_map[table_name]
+    stem = table_name.split(".")[-1]
+    for key, col in partition_map.items():
+        if key.split(".")[-1].lower() == stem.lower():
+            return col
+    return None
+
+
+def _expr_references_column(where_expr: exp.Expression | None, col_name: str) -> bool:
+    if where_expr is None:
+        return False
+    c_low = col_name.lower()
+    for col in where_expr.find_all(exp.Column):
+        if col.name.lower() == c_low:
+            return True
+    return False
+
+
+def detect_partition_filter_issues(
+    content: str,
+    dialect: str | None,
+    partition_map: dict[str, str],
+) -> list[str]:
+    """Flag ``MISSING_PARTITION_FILTER`` when a partitioned table lacks a ``WHERE`` on that key."""
+    if not partition_map:
+        return []
+    issues: list[str] = []
+    try:
+        stmts = sqlglot.parse(
+            content,
+            read=dialect,
+            error_level=ErrorLevel.IGNORE,
+        )
+    except Exception:
+        return issues
+
+    for stmt in stmts:
+        if stmt is None:
+            continue
+        for sel in stmt.find_all(exp.Select):
+            if not isinstance(sel, exp.Select) or not sel.find(exp.From):
+                continue
+            for table in sel.find_all(exp.Table):
+                tname = _qualified_name(table)
+                pcol = _resolve_partition_column(tname, partition_map)
+                if not pcol:
+                    continue
+                where = sel.args.get("where")
+                if isinstance(where, exp.Where):
+                    wexpr = where.this
+                else:
+                    wexpr = where
+                if not _expr_references_column(wexpr, pcol):
+                    issues.append("MISSING_PARTITION_FILTER")
+    return list(dict.fromkeys(issues))

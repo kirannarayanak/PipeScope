@@ -34,6 +34,7 @@ class Asset(BaseModel):
     asset_type: AssetType
     file_path: str
     columns: list[str] = Field(default_factory=list)
+    column_types: dict[str, str] = Field(default_factory=dict)
     has_tests: bool = False
     has_docs: bool = False
     owner: str | None = None

@@ -9,6 +9,8 @@ models:
         tests:
           - not_null
   - name: fct_sessions
+    meta:
+      owner: analytics-team
     columns:
       - name: id
         tests:
@@ -18,6 +20,8 @@ sources:
   - name: raw
     tables:
       - name: events
+        meta:
+          owner: ingest-team
         description: Raw events source
         columns:
           - name: id

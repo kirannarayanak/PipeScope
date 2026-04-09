@@ -31,6 +31,9 @@ class ModelMeta:
     description: str | None = None
     columns: list[str] = field(default_factory=list)
     test_richness: str = "ok"  # "ok" | "low" (only not_null-style tests)
+    owner: str | None = None
+    partition_key: str | None = None
+    column_types: dict[str, str] = field(default_factory=dict)
 
 
 def parse_dbt_model(file_path: str, content: str) -> tuple[list[Asset], list[Edge]]:
@@ -119,15 +122,20 @@ def parse_dbt_project(root: Path) -> tuple[list[Asset], list[Edge]]:
         model_name = model_sql.stem
         rel_path = str(model_sql.relative_to(root))
         meta = model_meta.get(model_name, ModelMeta())
+        mtags = {"project": project_name, "test_richness": meta.test_richness}
+        if meta.partition_key:
+            mtags["partition_key"] = meta.partition_key
         asset = Asset(
             name=model_name,
             asset_type=AssetType.DBT_MODEL,
             file_path=rel_path,
             columns=list(meta.columns),
+            column_types=dict(meta.column_types),
             has_docs=meta.has_docs,
             has_tests=meta.has_tests,
             description=meta.description,
-            tags={"project": project_name, "test_richness": meta.test_richness},
+            owner=meta.owner,
+            tags=mtags,
         )
         assets.append(asset)
 
@@ -262,6 +270,10 @@ def _merge_model_meta(payload: dict, meta_by_model: dict[str, ModelMeta]) -> Non
                 col_name = col.get("name")
                 if isinstance(col_name, str) and col_name not in meta.columns:
                     meta.columns.append(col_name)
+                if isinstance(col_name, str):
+                    dt = col.get("data_type")
+                    if isinstance(dt, str) and dt.strip():
+                        meta.column_types[col_name] = dt.strip()
                 col_desc = col.get("description")
                 if isinstance(col_desc, str) and col_desc.strip():
                     meta.has_docs = True
@@ -271,6 +283,15 @@ def _merge_model_meta(payload: dict, meta_by_model: dict[str, ModelMeta]) -> Non
                     all_test_names.extend(_extract_test_names_from_tests_block(col_tests))
 
         meta.test_richness = _richness_from_test_names(all_test_names)
+
+        meta_block = entry.get("meta")
+        if isinstance(meta_block, dict):
+            ow = meta_block.get("owner")
+            if isinstance(ow, str) and ow.strip():
+                meta.owner = ow.strip()
+            pk = meta_block.get("partition_key")
+            if isinstance(pk, str) and pk.strip():
+                meta.partition_key = pk.strip()
 
 
 def _collect_source_assets(
@@ -298,14 +319,28 @@ def _collect_source_assets(
             if not isinstance(table_name, str):
                 continue
             asset_name = f"{source_name}.{table_name}"
+            table_owner: str | None = None
+            tmeta = table.get("meta")
+            part_key: str | None = None
+            if isinstance(tmeta, dict):
+                tow = tmeta.get("owner")
+                if isinstance(tow, str) and tow.strip():
+                    table_owner = tow.strip()
+                tpk = tmeta.get("partition_key")
+                if isinstance(tpk, str) and tpk.strip():
+                    part_key = tpk.strip()
             description = table.get("description")
             has_docs = isinstance(description, str) and bool(description.strip())
             has_tests = isinstance(table.get("tests"), list) and bool(table.get("tests"))
             columns: list[str] = []
+            column_types: dict[str, str] = {}
             if isinstance(table.get("columns"), list):
                 for col in table["columns"]:
                     if isinstance(col, dict) and isinstance(col.get("name"), str):
                         columns.append(col["name"])
+                        cdt = col.get("data_type")
+                        if isinstance(cdt, str) and cdt.strip():
+                            column_types[col["name"]] = cdt.strip()
                         cdesc = col.get("description")
                         if isinstance(cdesc, str) and cdesc.strip():
                             has_docs = True
@@ -313,14 +348,20 @@ def _collect_source_assets(
                         if isinstance(ctests, list) and ctests:
                             has_tests = True
 
+            stags: dict[str, str] = {}
+            if part_key:
+                stags["partition_key"] = part_key
             out[asset_name] = Asset(
                 name=asset_name,
                 asset_type=AssetType.DBT_SOURCE,
                 file_path=rel_path,
                 columns=columns,
+                column_types=column_types,
                 has_docs=has_docs,
                 has_tests=has_tests,
                 description=description if isinstance(description, str) else None,
+                owner=table_owner,
+                tags=stags,
             )
 
 

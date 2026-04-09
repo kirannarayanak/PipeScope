@@ -9,6 +9,7 @@ from pipescope.scanner import DiscoveredFile
 
 from .airflow_parser import parse_airflow_file as parse_airflow_dag
 from .dbt_parser import parse_dbt_model, parse_dbt_project, parse_dbt_schema
+from .odcs_parser import ParsedContract, parse_odcs_file
 from .spark_parser import parse_spark_file as parse_spark_job
 from .sql_parser import parse_sql_file
 
@@ -46,11 +47,13 @@ def parse_file(
 
 
 __all__ = [
+    "ParsedContract",
     "parse_airflow_dag",
     "parse_dbt_model",
     "parse_dbt_project",
     "parse_dbt_schema",
     "parse_file",
+    "parse_odcs_file",
     "parse_spark_job",
     "parse_sql_file",
 ]

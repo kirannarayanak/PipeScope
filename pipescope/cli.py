@@ -4,27 +4,31 @@ from __future__ import annotations
 
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 import typer
-from rich.columns import Columns
 from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
 
 from pipescope import __version__
 from pipescope.analyzers.complexity import analyze_complexity
+from pipescope.analyzers.contracts import analyze_contract_compliance
+from pipescope.analyzers.cost_hotspots import analyze_cost_hotspots
 from pipescope.analyzers.dead_assets import (
     analyze_dead_assets,
     parse_dead_asset_terminal_tags_cli,
     parse_dead_asset_whitelist_cli,
 )
 from pipescope.analyzers.doc_coverage import analyze_documentation_coverage
+from pipescope.analyzers.ownership import analyze_ownership
 from pipescope.analyzers.test_coverage import analyze_test_coverage
 from pipescope.graph import build_pipeline_graph, compute_scan_analytics, graph_summary
 from pipescope.models import Asset, Edge
-from pipescope.parsers import parse_dbt_project, parse_file
+from pipescope.parsers import parse_dbt_project, parse_file, parse_odcs_file
+from pipescope.parsers.odcs_parser import ParsedContract
+from pipescope.reporters.html_report import write_report
 from pipescope.reporters.json_report import format_scan_json
+from pipescope.reporters.terminal import print_terminal_report
 from pipescope.scanner import DiscoveredFile, scan_directory
 
 app = typer.Typer(
@@ -45,96 +49,6 @@ def _ensure_utf8_stdio() -> None:
                 reconfigure(encoding="utf-8")
             except (OSError, ValueError, AttributeError):
                 pass
-
-
-def _print_score_panels(
-    console: Console,
-    *,
-    summary: dict,
-    analytics: dict,
-    scores: dict[str, int],
-    findings_count: int,
-) -> None:
-    """Rich panels for lineage summary and analyzer scores (terminal output)."""
-    dad = analytics["dead_asset_analysis"]
-    tc = analytics["test_coverage"]
-    doc = analytics["documentation_coverage"]
-    comp = analytics["complexity_analysis"]
-    cov_pct = (
-        f"{100.0 * tc['coverage_ratio']:.1f}%"
-        if tc.get("coverage_ratio") is not None
-        else "n/a"
-    )
-    doc_pct = (
-        f"{100.0 * doc['coverage_ratio']:.1f}%"
-        if doc.get("coverage_ratio") is not None
-        else "n/a"
-    )
-
-    graph_panel = Panel(
-        (
-            f"[cyan]Nodes[/] {summary['node_count']}   "
-            f"[cyan]Edges[/] {summary['edge_count']}\n"
-            f"[cyan]DAG[/] {summary['is_directed_acyclic']}   "
-            f"[cyan]Orphans[/] {analytics['orphan_asset_count']}   "
-            f"[cyan]Cycles[/] {analytics['cycle_count']}"
-        ),
-        title="Lineage graph",
-        border_style="blue",
-    )
-    dead_panel = Panel(
-        (
-            f"[bold magenta]{scores['dead_assets']}[/bold magenta]/100\n\n"
-            f"Dead (analyzed): {dad['dead_count']} / {dad['total_count']} assets\n"
-            f"Graph sinks: {analytics['dead_asset_count']}"
-        ),
-        title="Dead asset score",
-        subtitle="Higher is better",
-        border_style="magenta",
-    )
-    tc_panel = Panel(
-        (
-            f"[bold green]{scores['test_coverage']}[/bold green]/100\n\n"
-            f"Tested: {tc['assets_with_tests']}/{tc['asset_count']}\n"
-            f"Ratio: {cov_pct}"
-        ),
-        title="Test coverage score",
-        subtitle="Higher is better",
-        border_style="green",
-    )
-    doc_panel = Panel(
-        (
-            f"[bold yellow]{scores['documentation']}[/bold yellow]/100\n\n"
-            f"Documented: {doc['documented_count']}/{doc['asset_count']}\n"
-            f"Ratio: {doc_pct}"
-        ),
-        title="Documentation score",
-        subtitle="Higher is better",
-        border_style="yellow",
-    )
-
-    console.print("\n")
-    console.print(graph_panel)
-    console.print(Columns([dead_panel, tc_panel, doc_panel], equal=True, expand=True))
-    cx_panel = Panel(
-        (
-            f"[bold red]{scores['complexity']}[/bold red]/100\n\n"
-            f"Pipeline average (normalized components)\n"
-            f"80th pct threshold: {comp['percentile_80_threshold']}\n"
-            f"Flagged (≥ p80): {comp['assets_above_percentile']} assets"
-        ),
-        title="Complexity score",
-        subtitle="Higher = more complex",
-        border_style="red",
-    )
-    console.print(cx_panel)
-    console.print(
-        Panel(
-            f"[bold]{findings_count}[/bold] findings (all analyzers)",
-            title="Summary",
-            border_style="dim",
-        )
-    )
 
 
 def _make_console() -> Console:
@@ -224,8 +138,8 @@ def _dedupe_edges(edges: list[Edge]) -> list[Edge]:
 def collect_scan(
     root: Path,
     dialect: str | None,
-) -> tuple[list[DiscoveredFile], list[Asset], list[Edge]]:
-    """Discover files and parse SQL, dbt projects, Airflow DAGs, and Spark jobs."""
+) -> tuple[list[DiscoveredFile], list[Asset], list[Edge], list[ParsedContract]]:
+    """Discover files and parse SQL, dbt projects, Airflow DAGs, Spark jobs, and ODCS contracts."""
     scan_root = root.resolve()
     files = scan_directory(scan_root)
     dbt_roots_list = _collect_dbt_project_roots(scan_root, files)
@@ -233,6 +147,7 @@ def collect_scan(
 
     all_assets: list[Asset] = []
     all_edges: list[Edge] = []
+    parsed_contracts: list[ParsedContract] = []
 
     for project_root in dbt_roots_list:
         dbt_assets, dbt_edges = parse_dbt_project(project_root)
@@ -257,8 +172,18 @@ def collect_scan(
         all_assets.extend(assets)
         all_edges.extend(edges)
 
+    for f in files:
+        if f.file_type != "data_contract":
+            continue
+        try:
+            content = f.path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        rel = _relative_file_path(f.path, scan_root)
+        parsed_contracts.extend(parse_odcs_file(rel, content))
+
     all_edges = _dedupe_edges(all_edges)
-    return files, all_assets, all_edges
+    return files, all_assets, all_edges, parsed_contracts
 
 
 def _parsed_sql_file_count(files: list[DiscoveredFile], dbt_roots: set[Path]) -> int:
@@ -330,7 +255,7 @@ def scan(
         raise typer.BadParameter("--test-coverage-critical-deps must be >= 0")
 
     root = Path(path).resolve()
-    files, all_assets, all_edges = collect_scan(root, dialect)
+    files, all_assets, all_edges, parsed_contracts = collect_scan(root, dialect)
     dbt_roots = set(_collect_dbt_project_roots(root, files))
 
     pg = build_pipeline_graph(all_assets, all_edges)
@@ -349,6 +274,9 @@ def scan(
     )
     doc_analysis = analyze_documentation_coverage(all_assets)
     cx_analysis = analyze_complexity(pg, all_assets, root, dialect)
+    own_analysis = analyze_ownership(all_assets, root)
+    cc_analysis = analyze_contract_compliance(pg, all_assets, parsed_contracts)
+    ch_analysis = analyze_cost_hotspots(pg, all_assets, root, dialect)
     analytics["dead_asset_analysis"] = dead_analysis.to_analytics_dict()
     analytics["test_coverage"] = {
         "asset_count": tc_analysis.total_count,
@@ -363,17 +291,26 @@ def scan(
     }
     analytics["documentation_coverage_analysis"] = doc_analysis.to_analytics_dict()
     analytics["complexity_analysis"] = cx_analysis.to_analytics_dict()
+    analytics["ownership_analysis"] = own_analysis.to_analytics_dict()
+    analytics["contract_compliance_analysis"] = cc_analysis.to_analytics_dict()
+    analytics["cost_hotspot_analysis"] = ch_analysis.to_analytics_dict()
     findings = (
         list(dead_analysis.findings)
         + list(tc_analysis.findings)
         + list(doc_analysis.findings)
         + list(cx_analysis.findings)
+        + list(own_analysis.findings)
+        + list(cc_analysis.findings)
+        + list(ch_analysis.findings)
     )
     scores = {
         "dead_assets": dead_analysis.score,
         "test_coverage": tc_analysis.score,
         "documentation": doc_analysis.score,
         "complexity": cx_analysis.pipeline_score,
+        "ownership": own_analysis.score,
+        "contracts": cc_analysis.score,
+        "cost_hotspots": ch_analysis.score,
     }
 
     if fmt == "json":
@@ -400,41 +337,29 @@ def scan(
 
     _ensure_utf8_stdio()
     console = _make_console()
-
-    console.print(f"[bold purple]Scanning {root}...[/]")
-    console.print(f"Found {len(files)} data files")
-
-    table = Table(
-        title="Discovered Assets",
-        expand=True,
-        show_header=True,
-        header_style="bold",
+    html_report_path = Path(tempfile.gettempdir()) / "pipescope-report.html"
+    write_report(
+        html_report_path,
+        {
+            "version": __version__,
+            "scan_root": str(root),
+            "graph": summary,
+            "scores": scores,
+            "analytics": analytics,
+            "findings": [f.model_dump(mode="json") for f in findings],
+        },
     )
-    table.add_column("Name", style="cyan", overflow="fold", min_width=24)
-    table.add_column("Type", style="green", min_width=8)
-    table.add_column("File", overflow="fold", min_width=28)
-    table.add_column("Columns", justify="right", min_width=7)
-
-    for asset in all_assets:
-        table.add_row(
-            asset.name,
-            asset.asset_type.value,
-            asset.file_path,
-            str(len(asset.columns)),
-        )
-    console.print(table)
-
-    console.print(f"\n[bold]Edges (dependencies): {len(all_edges)}[/]")
-    for edge in all_edges[:20]:
-        console.print(f"  {edge.source} -> {edge.target}")
-
-    console.print("\n[bold]Graph & scores[/]")
-    _print_score_panels(
+    print_terminal_report(
         console,
+        scan_root=str(root),
+        discovered_file_count=len(files),
+        assets=all_assets,
+        edges=all_edges,
         summary=summary,
         analytics=analytics,
         scores=scores,
-        findings_count=len(findings),
+        findings=findings,
+        html_report_path=str(html_report_path),
     )
 
 

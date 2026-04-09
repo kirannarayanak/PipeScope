@@ -23,6 +23,8 @@ def test_parse_dbt_sample_extracts_models_sources_and_edges() -> None:
     assert asset_by_name["stg_events"].has_tests is True
     assert "id" in asset_by_name["stg_events"].columns
     assert asset_by_name["fct_sessions"].tags.get("test_richness") == "low"
+    assert asset_by_name["fct_sessions"].owner == "analytics-team"
+    assert asset_by_name["raw.events"].owner == "ingest-team"
 
     edge_pairs = {(e.source, e.target) for e in edges}
     assert ("raw.events", "stg_events") in edge_pairs

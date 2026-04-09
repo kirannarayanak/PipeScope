@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from pipescope.models import AssetType
-from pipescope.parsers.sql_parser import detect_cost_patterns, parse_sql_file
+from pipescope.parsers.sql_parser import (
+    detect_cost_patterns,
+    detect_partition_filter_issues,
+    parse_sql_file,
+)
 
 
 def _edge_pairs(edges: list) -> set[tuple[str, str]]:
@@ -72,3 +76,32 @@ def test_select_with_joins_yields_query_asset_and_source_edges() -> None:
 def test_select_star_emits_cost_pattern() -> None:
     sql = "SELECT * FROM big_table WHERE id = 1"
     assert "SELECT_STAR" in detect_cost_patterns(sql, dialect="postgres")
+
+
+def test_select_without_where_and_no_limit() -> None:
+    sql = "SELECT id FROM public.t"
+    p = detect_cost_patterns(sql, dialect="postgres")
+    assert "SELECT_WITHOUT_WHERE" in p
+    assert "NO_LIMIT" in p
+
+
+def test_select_with_where_has_neither_flag() -> None:
+    sql = "SELECT id FROM t WHERE id > 0 LIMIT 10"
+    p = detect_cost_patterns(sql, dialect="postgres")
+    assert "SELECT_WITHOUT_WHERE" not in p
+    assert "NO_LIMIT" not in p
+
+
+def test_partition_filter_missing_when_map_provided() -> None:
+    sql = "SELECT x FROM raw.events"
+    m = {"raw.events": "dt"}
+    assert "MISSING_PARTITION_FILTER" in detect_partition_filter_issues(
+        sql, "postgres", m
+    )
+
+
+def test_partition_filter_ok_when_where_on_key() -> None:
+    sql = "SELECT x FROM raw.events WHERE dt = DATE '2024-01-01'"
+    assert (
+        detect_partition_filter_issues(sql, "postgres", {"raw.events": "dt"}) == []
+    )

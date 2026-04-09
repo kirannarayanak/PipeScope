@@ -48,6 +48,9 @@ def test_scan_prints_assets_and_edges_table(runner: CliRunner) -> None:
     assert "Test coverage score" in out
     assert "Documentation score" in out
     assert "Complexity score" in out
+    assert "Ownership score" in out
+    assert "Contract compliance" in out
+    assert "Cost hotspots" in out
 
 
 def test_scan_reports_nonzero_edge_count_when_fixtures_have_sql(runner: CliRunner) -> None:
@@ -91,7 +94,13 @@ def test_scan_format_json_is_valid_json(runner: CliRunner) -> None:
     assert "test_coverage" in data["scores"]
     assert "documentation" in data["scores"]
     assert "complexity" in data["scores"]
+    assert "ownership" in data["scores"]
+    assert "contracts" in data["scores"]
+    assert "cost_hotspots" in data["scores"]
     assert "dead_asset_analysis" in data["analytics"]
+    assert "ownership_analysis" in data["analytics"]
+    assert "contract_compliance_analysis" in data["analytics"]
+    assert "cost_hotspot_analysis" in data["analytics"]
     tc = data["analytics"]["test_coverage"]
     assert "asset_count" in tc and "assets_with_tests" in tc and "coverage_ratio" in tc
     assert "Scanning" not in result.stdout
