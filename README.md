@@ -43,7 +43,26 @@ pipescope scan path/to/repo --dialect postgres
 pipescope scan . --format json
 ```
 
-JSON output includes `assets`, `edges`, and a `graph` summary (`node_count`, `edge_count`, `is_directed_acyclic`) for CI and tooling.
+Analyzer tuning (optional):
+
+```bash
+pipescope scan . --dead-asset-whitelist my_export,legacy_sink
+pipescope scan . --test-coverage-critical-deps 15
+```
+
+### JSON output (`--format json`)
+
+Top-level keys include:
+
+| Key | Purpose |
+| --- | --- |
+| `assets`, `edges` | Parsed inventory and lineage (`source` → `target`) |
+| `graph` | `node_count`, `edge_count`, `is_directed_acyclic` |
+| `analytics` | Graph metrics (`dead_asset_count`, `orphan_assets`, fan-out, cycles, …), `dead_asset_analysis`, `test_coverage`, `test_coverage_analysis` (includes `critical_downstream_threshold`) |
+| `findings` | Combined `dead_asset`, `missing_test`, `weak_test_coverage`, … |
+| `scores` | `dead_assets` and `test_coverage` scores (0–100, higher is better for coverage) |
+
+Use this shape for CI gates and dashboards.
 
 ## CI
 

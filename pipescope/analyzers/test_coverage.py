@@ -57,11 +57,13 @@ def _downstream_dependents(pg: PipelineGraph, name: str) -> int:
 def _severity_for_missing_tests(
     deps: int,
     staging: bool,
+    *,
+    critical_downstream_threshold: int,
 ) -> Severity:
     """CRITICAL / WARNING / INFO with staging treated as lower risk."""
     if deps == 0:
         return Severity.INFO
-    if deps > 10:
+    if deps > critical_downstream_threshold:
         return Severity.WARNING if staging else Severity.CRITICAL
     if deps > 0:
         return Severity.INFO if staging else Severity.WARNING
@@ -75,6 +77,7 @@ class TestCoverageAnalysisResult:
     tested_count: int = 0
     total_count: int = 0
     coverage_ratio: float | None = None
+    critical_downstream_threshold: int = 10
 
     def to_analytics_dict(self) -> dict[str, Any]:
         return {
@@ -82,12 +85,18 @@ class TestCoverageAnalysisResult:
             "tested_count": self.tested_count,
             "total_count": self.total_count,
             "coverage_ratio": self.coverage_ratio,
+            "critical_downstream_threshold": self.critical_downstream_threshold,
         }
+
+
+DEFAULT_CRITICAL_DOWNSTREAM_THRESHOLD = 10
 
 
 def analyze_test_coverage(
     pg: PipelineGraph,
     assets: list[Asset],
+    *,
+    critical_downstream_threshold: int = DEFAULT_CRITICAL_DOWNSTREAM_THRESHOLD,
 ) -> TestCoverageAnalysisResult:
     """Score test coverage and emit findings for gaps and weak dbt tests.
 
@@ -95,12 +104,13 @@ def analyze_test_coverage(
 
     Findings (no tests, only if downstream dependents > 0):
 
-    - CRITICAL — ``dependents > 10`` and not staging.
+    - CRITICAL — ``dependents > critical_downstream_threshold`` and not staging.
     - WARNING — ``dependents > 0`` and not staging (and not CRITICAL).
-    - INFO — staging-only risk for ``0 < dependents <= 10``.
+    - INFO — staging-only risk for ``0 < dependents <= threshold``.
 
     INFO — ``has_tests`` and ``tags.test_richness == low`` on mart/final models.
     """
+    threshold = max(0, int(critical_downstream_threshold))
     scope = _coverage_scope(assets)
     if not scope:
         return TestCoverageAnalysisResult(
@@ -108,6 +118,7 @@ def analyze_test_coverage(
             tested_count=0,
             total_count=0,
             coverage_ratio=None,
+            critical_downstream_threshold=threshold,
         )
 
     tested_count = sum(1 for a in scope if a.has_tests)
@@ -130,7 +141,11 @@ def analyze_test_coverage(
         if deps == 0:
             continue
         staging = _is_staging(asset)
-        sev = _severity_for_missing_tests(deps, staging)
+        sev = _severity_for_missing_tests(
+            deps,
+            staging,
+            critical_downstream_threshold=threshold,
+        )
         findings.append(
             Finding(
                 severity=sev,
@@ -170,6 +185,7 @@ def analyze_test_coverage(
         tested_count=tested_count,
         total_count=total_count,
         coverage_ratio=round(ratio, 6) if ratio is not None else None,
+        critical_downstream_threshold=threshold,
     )
 
 

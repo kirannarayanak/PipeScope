@@ -71,6 +71,7 @@ def test_scan_help_shows_path_and_dialect(runner: CliRunner) -> None:
     result = runner.invoke(app, ["scan", "--help"], color=False)
     assert result.exit_code == 0
     assert "dialect" in result.stdout.lower() or "--dialect" in result.stdout
+    assert "test-coverage-critical-deps" in result.stdout
 
 
 def test_scan_format_json_is_valid_json(runner: CliRunner) -> None:

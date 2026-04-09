@@ -219,11 +219,21 @@ def scan(
             "Pass empty string to disable tag-based exclusion."
         ),
     ),
+    test_coverage_critical_deps: int = typer.Option(
+        10,
+        "--test-coverage-critical-deps",
+        help=(
+            "Emit CRITICAL missing-test findings when downstream dependents exceed this "
+            "(non-staging models only; default: 10)."
+        ),
+    ),
 ) -> None:
     """Scan a directory and analyze data pipeline health."""
     fmt = format_.strip().lower()
     if fmt not in ("terminal", "json"):
         raise typer.BadParameter("format must be 'terminal' or 'json'")
+    if test_coverage_critical_deps < 0:
+        raise typer.BadParameter("--test-coverage-critical-deps must be >= 0")
 
     root = Path(path).resolve()
     files, all_assets, all_edges = collect_scan(root, dialect)
@@ -238,7 +248,11 @@ def scan(
         whitelist=parse_dead_asset_whitelist_cli(dead_asset_whitelist),
         terminal_tag_markers=parse_dead_asset_terminal_tags_cli(dead_asset_terminal_tags),
     )
-    tc_analysis = analyze_test_coverage(pg, all_assets)
+    tc_analysis = analyze_test_coverage(
+        pg,
+        all_assets,
+        critical_downstream_threshold=test_coverage_critical_deps,
+    )
     analytics["dead_asset_analysis"] = dead_analysis.to_analytics_dict()
     analytics["test_coverage"] = {
         "asset_count": tc_analysis.total_count,

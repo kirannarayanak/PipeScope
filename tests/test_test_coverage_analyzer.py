@@ -27,6 +27,30 @@ def test_coverage_score_and_missing_test_severity() -> None:
     assert missing[0].severity == Severity.WARNING
 
 
+def test_critical_threshold_lowers_severity_when_raised() -> None:
+    assets = [
+        Asset(
+            name="risky",
+            asset_type=AssetType.DBT_MODEL,
+            file_path="models/marts/risky.sql",
+            has_tests=False,
+        ),
+    ] + [
+        Asset(
+            name=f"c{i}",
+            asset_type=AssetType.DBT_MODEL,
+            file_path=f"models/marts/c{i}.sql",
+            has_tests=True,
+        )
+        for i in range(12)
+    ]
+    edges = [Edge(source="risky", target=f"c{i}") for i in range(12)]
+    pg = build_pipeline_graph(assets, edges)
+    r = analyze_test_coverage(pg, assets, critical_downstream_threshold=20)
+    m = [f for f in r.findings if f.category == "missing_test" and f.asset_name == "risky"][0]
+    assert m.severity == Severity.WARNING
+
+
 def test_critical_many_dependents_without_tests() -> None:
     assets = [
         Asset(
