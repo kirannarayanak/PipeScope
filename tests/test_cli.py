@@ -42,9 +42,10 @@ def test_scan_prints_assets_and_edges_table(runner: CliRunner) -> None:
     assert "data files" in out
     assert "Discovered Assets" in out
     assert "Edges (dependencies):" in out
-    assert "Graph:" in out
-    assert "Analytics:" in out
-    assert "test-coverage score=" in out
+    assert "Graph & scores" in out
+    assert "Lineage graph" in out
+    assert "Dead asset score" in out
+    assert "Test coverage score" in out
 
 
 def test_scan_reports_nonzero_edge_count_when_fixtures_have_sql(runner: CliRunner) -> None:

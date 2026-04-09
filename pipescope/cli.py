@@ -7,7 +7,9 @@ import sys
 from pathlib import Path
 
 import typer
+from rich.columns import Columns
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 
 from pipescope import __version__
@@ -41,6 +43,67 @@ def _ensure_utf8_stdio() -> None:
                 reconfigure(encoding="utf-8")
             except (OSError, ValueError, AttributeError):
                 pass
+
+
+def _print_score_panels(
+    console: Console,
+    *,
+    summary: dict,
+    analytics: dict,
+    scores: dict[str, int],
+    findings_count: int,
+) -> None:
+    """Rich panels for lineage summary and analyzer scores (terminal output)."""
+    dad = analytics["dead_asset_analysis"]
+    tc = analytics["test_coverage"]
+    cov_pct = (
+        f"{100.0 * tc['coverage_ratio']:.1f}%"
+        if tc.get("coverage_ratio") is not None
+        else "n/a"
+    )
+
+    graph_panel = Panel(
+        (
+            f"[cyan]Nodes[/] {summary['node_count']}   "
+            f"[cyan]Edges[/] {summary['edge_count']}\n"
+            f"[cyan]DAG[/] {summary['is_directed_acyclic']}   "
+            f"[cyan]Orphans[/] {analytics['orphan_asset_count']}   "
+            f"[cyan]Cycles[/] {analytics['cycle_count']}"
+        ),
+        title="Lineage graph",
+        border_style="blue",
+    )
+    dead_panel = Panel(
+        (
+            f"[bold magenta]{scores['dead_assets']}[/bold magenta]/100\n\n"
+            f"Dead (analyzed): {dad['dead_count']} / {dad['total_count']} assets\n"
+            f"Graph sinks: {analytics['dead_asset_count']}"
+        ),
+        title="Dead asset score",
+        subtitle="Higher is better",
+        border_style="magenta",
+    )
+    tc_panel = Panel(
+        (
+            f"[bold green]{scores['test_coverage']}[/bold green]/100\n\n"
+            f"Tested: {tc['assets_with_tests']}/{tc['asset_count']}\n"
+            f"Ratio: {cov_pct}"
+        ),
+        title="Test coverage score",
+        subtitle="Higher is better",
+        border_style="green",
+    )
+
+    console.print("\n")
+    console.print(graph_panel)
+    console.print(Columns([dead_panel, tc_panel], equal=True, expand=True))
+    console.print(
+        Panel(
+            f"[bold]{findings_count}[/bold] findings (dead assets + test coverage)",
+            title="Summary",
+            border_style="dim",
+        )
+    )
 
 
 def _make_console() -> Console:
@@ -318,26 +381,13 @@ def scan(
     for edge in all_edges[:20]:
         console.print(f"  {edge.source} -> {edge.target}")
 
-    console.print(
-        f"\n[bold]Graph:[/] {summary['node_count']} nodes, "
-        f"{summary['edge_count']} edges, "
-        f"DAG={summary['is_directed_acyclic']}",
-    )
-    tc = analytics["test_coverage"]
-    cov_pct = (
-        f"{100.0 * tc['coverage_ratio']:.1f}%"
-        if tc.get("coverage_ratio") is not None
-        else "n/a"
-    )
-    dad = analytics["dead_asset_analysis"]
-    console.print(
-        f"[bold]Analytics:[/] dead assets={analytics['dead_asset_count']}, "
-        f"orphans={analytics['orphan_asset_count']}, "
-        f"cycles={analytics['cycle_count']}, "
-        f"test coverage={tc['assets_with_tests']}/{tc['asset_count']} ({cov_pct}), "
-        f"dead-asset score={dad['dead_asset_score']} "
-        f"(analyzed dead={dad['dead_count']}/{dad['total_count']}), "
-        f"test-coverage score={scores['test_coverage']}",
+    console.print("\n[bold]Graph & scores[/]")
+    _print_score_panels(
+        console,
+        summary=summary,
+        analytics=analytics,
+        scores=scores,
+        findings_count=len(findings),
     )
 
 
