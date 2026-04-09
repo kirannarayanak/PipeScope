@@ -11,7 +11,11 @@ from rich.console import Console
 from rich.table import Table
 
 from pipescope import __version__
-from pipescope.analyzers.dead_assets import analyze_dead_assets
+from pipescope.analyzers.dead_assets import (
+    analyze_dead_assets,
+    parse_dead_asset_terminal_tags_cli,
+    parse_dead_asset_whitelist_cli,
+)
 from pipescope.graph import build_pipeline_graph, compute_scan_analytics, graph_summary
 from pipescope.models import Asset, Edge
 from pipescope.parsers import parse_dbt_project, parse_file
@@ -200,6 +204,20 @@ def scan(
         "-f",
         help="Output: terminal (Rich) or json (machine-readable).",
     ),
+    dead_asset_whitelist: str | None = typer.Option(
+        None,
+        "--dead-asset-whitelist",
+        help="Comma-separated asset names excluded from dead-asset analysis.",
+    ),
+    dead_asset_terminal_tags: str | None = typer.Option(
+        None,
+        "--dead-asset-terminal-tags",
+        help=(
+            "Comma-separated substrings for intentional terminal sinks "
+            "(tag keys/values; default: exposure,dashboard,export). "
+            "Pass empty string to disable tag-based exclusion."
+        ),
+    ),
 ) -> None:
     """Scan a directory and analyze data pipeline health."""
     fmt = format_.strip().lower()
@@ -213,7 +231,12 @@ def scan(
     pg = build_pipeline_graph(all_assets, all_edges)
     summary = graph_summary(pg.g)
     analytics = compute_scan_analytics(pg, all_assets)
-    dead_analysis = analyze_dead_assets(pg, all_assets)
+    dead_analysis = analyze_dead_assets(
+        pg,
+        all_assets,
+        whitelist=parse_dead_asset_whitelist_cli(dead_asset_whitelist),
+        terminal_tag_markers=parse_dead_asset_terminal_tags_cli(dead_asset_terminal_tags),
+    )
     analytics["dead_asset_analysis"] = dead_analysis.to_analytics_dict()
     findings = list(dead_analysis.findings)
     scores = {"dead_assets": dead_analysis.score}

@@ -16,6 +16,26 @@ DEFAULT_TERMINAL_TAG_MARKERS: frozenset[str] = frozenset(
 )
 
 
+def parse_dead_asset_whitelist_cli(raw: str | None) -> frozenset[str]:
+    """Parse ``--dead-asset-whitelist`` (comma-separated asset names)."""
+    if raw is None or not str(raw).strip():
+        return frozenset()
+    return frozenset(p.strip() for p in raw.split(",") if p.strip())
+
+
+def parse_dead_asset_terminal_tags_cli(raw: str | None) -> frozenset[str]:
+    """Parse ``--dead-asset-terminal-tags``.
+
+    * ``None`` — use :data:`DEFAULT_TERMINAL_TAG_MARKERS`.
+    * Empty or whitespace-only — no tag-based exclusion (empty marker set).
+    * Otherwise — comma-separated substrings matched against tag keys/values.
+    """
+    if raw is None:
+        return DEFAULT_TERMINAL_TAG_MARKERS
+    parts = [p.strip().lower() for p in raw.split(",") if p.strip()]
+    return frozenset(parts)
+
+
 def _tags_indicate_terminal(tags: dict[str, str], markers: frozenset[str]) -> bool:
     for k, v in tags.items():
         lk = (k or "").lower()

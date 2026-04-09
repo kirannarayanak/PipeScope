@@ -115,6 +115,28 @@ def test_scan_json_includes_airflow_parse_count(runner: CliRunner) -> None:
     assert "dbt_model" in types or "dbt_source" in types
 
 
+def test_scan_dead_asset_whitelist_cli(runner: CliRunner) -> None:
+    """Whitelisting a sink removes it from dead-asset findings."""
+    dbt_root = str((FIXTURES / "dbt_sample").resolve())
+    result = runner.invoke(
+        app,
+        [
+            "scan",
+            dbt_root,
+            "--format",
+            "json",
+            "--dead-asset-whitelist",
+            "fct_sessions",
+        ],
+        color=False,
+        env={"PYTHONUTF8": "1"},
+    )
+    assert result.exit_code == 0, result.stderr
+    data = json.loads(result.stdout)
+    names = {f["asset_name"] for f in data["findings"] if f["category"] == "dead_asset"}
+    assert "fct_sessions" not in names
+
+
 def test_scan_dbt_sample_lineage_from_dbt_parser(runner: CliRunner) -> None:
     """dbt_sample: ref + source edges come from parse_dbt_project, not plain SQL."""
     dbt_root = str((FIXTURES / "dbt_sample").resolve())
