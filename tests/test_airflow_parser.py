@@ -36,3 +36,16 @@ def test_parse_airflow_sample_dag_extracts_tasks_and_dependencies() -> None:
     assert ("sample_pipeline.extract", "sample_pipeline.transform") in edge_pairs
     assert ("sample_pipeline.transform", "sample_pipeline.load") in edge_pairs
     assert ("sample_pipeline.extract", "sample_pipeline.notify") in edge_pairs
+
+
+def test_dag_doc_md_sets_has_docs_flag() -> None:
+    content = '''
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+
+with DAG("doc_dag", doc_md="## Pipeline", schedule=None) as dag:
+    BashOperator(task_id="t", bash_command="echo")
+'''
+    assets, _ = parse_airflow_file("dag.py", content)
+    dag = next(a for a in assets if a.name == "doc_dag")
+    assert dag.has_docs is True

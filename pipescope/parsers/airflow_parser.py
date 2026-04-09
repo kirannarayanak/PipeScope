@@ -25,6 +25,7 @@ class AirflowVisitor(ast.NodeVisitor):
     def __init__(self, file_path: str):
         self.file_path = file_path
         self.dags: set[str] = set()
+        self.dag_docs: dict[str, bool] = {}
         self.current_dag: str | None = None
         self.task_vars: dict[str, str] = {}  # python variable -> task_id
         self.task_meta: dict[str, dict[str, str]] = {}  # task_id -> metadata
@@ -34,9 +35,9 @@ class AirflowVisitor(ast.NodeVisitor):
         if isinstance(node.value, ast.Call):
             func_name = self._get_func_name(node.value)
             if func_name == "DAG":
+                self._register_dag(node.value)
                 dag_id = self._extract_dag_id(node.value)
                 if dag_id:
-                    self.dags.add(dag_id)
                     self.current_dag = dag_id
             elif self._looks_like_operator(func_name):
                 task_id = self._extract_keyword_str(node.value, "task_id")
@@ -60,9 +61,9 @@ class AirflowVisitor(ast.NodeVisitor):
         for item in node.items:
             if isinstance(item.context_expr, ast.Call):
                 if self._get_func_name(item.context_expr) == "DAG":
+                    self._register_dag(item.context_expr)
                     dag_id = self._extract_dag_id(item.context_expr)
                     if dag_id:
-                        self.dags.add(dag_id)
                         self.current_dag = dag_id
         self.generic_visit(node)
         self.current_dag = prev_dag
@@ -108,6 +109,7 @@ class AirflowVisitor(ast.NodeVisitor):
                     name=dag_id,
                     asset_type=AssetType.AIRFLOW_DAG,
                     file_path=self.file_path,
+                    has_docs=self.dag_docs.get(dag_id, False),
                 )
             )
 
@@ -142,6 +144,25 @@ class AirflowVisitor(ast.NodeVisitor):
             return None
         dag_id = meta.get("dag_id") or "unknown_dag"
         return f"{dag_id}.{task_id}"
+
+    def _register_dag(self, call: ast.Call) -> None:
+        dag_id = self._extract_dag_id(call)
+        if not dag_id:
+            return
+        self.dags.add(dag_id)
+        self.dag_docs[dag_id] = self._dag_has_documentation(call)
+
+    def _dag_has_documentation(self, call: ast.Call) -> bool:
+        """True if ``doc_md`` or ``doc`` is set on ``DAG(...)``."""
+        for key in ("doc_md", "doc"):
+            for kw in call.keywords:
+                if kw.arg != key:
+                    continue
+                if isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+                    return bool(kw.value.value.strip())
+                if isinstance(kw.value, ast.JoinedStr):
+                    return True
+        return False
 
     def _extract_dag_id(self, call: ast.Call) -> str | None:
         # DAG("my_dag", ...) or DAG(dag_id="my_dag", ...)

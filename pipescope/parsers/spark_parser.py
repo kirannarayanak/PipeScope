@@ -19,7 +19,9 @@ def parse_spark_file(file_path: str, content: str) -> tuple[list[Asset], list[Ed
     except SyntaxError:
         return [], []
 
-    visitor = SparkVisitor(file_path=file_path)
+    mod_doc = ast.get_docstring(tree)
+    file_has_docs = bool(mod_doc and mod_doc.strip())
+    visitor = SparkVisitor(file_path=file_path, file_has_docs=file_has_docs)
     visitor.visit(tree)
     return visitor.to_assets_edges()
 
@@ -27,8 +29,9 @@ def parse_spark_file(file_path: str, content: str) -> tuple[list[Asset], list[Ed
 class SparkVisitor(ast.NodeVisitor):
     """Collect Spark read/write targets and derive simple read→write edges."""
 
-    def __init__(self, file_path: str) -> None:
+    def __init__(self, file_path: str, *, file_has_docs: bool = False) -> None:
         self.file_path = file_path
+        self.file_has_docs = file_has_docs
         self.reads: list[str] = []
         self.writes: list[str] = []
         self._seen_reads: set[str] = set()
@@ -74,6 +77,7 @@ class SparkVisitor(ast.NodeVisitor):
                     name=name,
                     asset_type=AssetType.TABLE,
                     file_path=self.file_path,
+                    has_docs=self.file_has_docs,
                     tags={"spark_role": role},
                 )
             )

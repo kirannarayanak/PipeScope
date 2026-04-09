@@ -18,6 +18,7 @@ from pipescope.analyzers.dead_assets import (
     parse_dead_asset_terminal_tags_cli,
     parse_dead_asset_whitelist_cli,
 )
+from pipescope.analyzers.doc_coverage import analyze_documentation_coverage
 from pipescope.analyzers.test_coverage import analyze_test_coverage
 from pipescope.graph import build_pipeline_graph, compute_scan_analytics, graph_summary
 from pipescope.models import Asset, Edge
@@ -56,9 +57,15 @@ def _print_score_panels(
     """Rich panels for lineage summary and analyzer scores (terminal output)."""
     dad = analytics["dead_asset_analysis"]
     tc = analytics["test_coverage"]
+    doc = analytics["documentation_coverage"]
     cov_pct = (
         f"{100.0 * tc['coverage_ratio']:.1f}%"
         if tc.get("coverage_ratio") is not None
+        else "n/a"
+    )
+    doc_pct = (
+        f"{100.0 * doc['coverage_ratio']:.1f}%"
+        if doc.get("coverage_ratio") is not None
         else "n/a"
     )
 
@@ -93,13 +100,23 @@ def _print_score_panels(
         subtitle="Higher is better",
         border_style="green",
     )
+    doc_panel = Panel(
+        (
+            f"[bold yellow]{scores['documentation']}[/bold yellow]/100\n\n"
+            f"Documented: {doc['documented_count']}/{doc['asset_count']}\n"
+            f"Ratio: {doc_pct}"
+        ),
+        title="Documentation score",
+        subtitle="Higher is better",
+        border_style="yellow",
+    )
 
     console.print("\n")
     console.print(graph_panel)
-    console.print(Columns([dead_panel, tc_panel], equal=True, expand=True))
+    console.print(Columns([dead_panel, tc_panel, doc_panel], equal=True, expand=True))
     console.print(
         Panel(
-            f"[bold]{findings_count}[/bold] findings (dead assets + test coverage)",
+            f"[bold]{findings_count}[/bold] findings (dead assets + tests + docs)",
             title="Summary",
             border_style="dim",
         )
@@ -316,6 +333,7 @@ def scan(
         all_assets,
         critical_downstream_threshold=test_coverage_critical_deps,
     )
+    doc_analysis = analyze_documentation_coverage(all_assets)
     analytics["dead_asset_analysis"] = dead_analysis.to_analytics_dict()
     analytics["test_coverage"] = {
         "asset_count": tc_analysis.total_count,
@@ -323,10 +341,21 @@ def scan(
         "coverage_ratio": tc_analysis.coverage_ratio,
     }
     analytics["test_coverage_analysis"] = tc_analysis.to_analytics_dict()
-    findings = list(dead_analysis.findings) + list(tc_analysis.findings)
+    analytics["documentation_coverage"] = {
+        "asset_count": doc_analysis.total_count,
+        "documented_count": doc_analysis.documented_count,
+        "coverage_ratio": doc_analysis.coverage_ratio,
+    }
+    analytics["documentation_coverage_analysis"] = doc_analysis.to_analytics_dict()
+    findings = (
+        list(dead_analysis.findings)
+        + list(tc_analysis.findings)
+        + list(doc_analysis.findings)
+    )
     scores = {
         "dead_assets": dead_analysis.score,
         "test_coverage": tc_analysis.score,
+        "documentation": doc_analysis.score,
     }
 
     if fmt == "json":

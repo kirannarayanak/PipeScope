@@ -9,6 +9,26 @@ from sqlglot.errors import ErrorLevel
 from pipescope.models import Asset, AssetType, Edge
 
 
+def _sql_file_has_leading_documentation(content: str) -> bool:
+    """True when the file opens with ``/* */`` or ``--`` comments (dbt/SQL style docs)."""
+    s = content.lstrip("\ufeff \t\n\r")
+    if not s:
+        return False
+    if s.startswith("/*"):
+        end = s.find("*/")
+        if end == -1:
+            return False
+        return len(s[2:end].strip()) > 0
+    for line in s.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("--"):
+            return len(stripped) > 2
+        break
+    return False
+
+
 def parse_sql_file(
     file_path: str,
     content: str,
@@ -26,6 +46,8 @@ def parse_sql_file(
         )
     except Exception:
         return assets, edges
+
+    file_has_docs = _sql_file_has_leading_documentation(content)
 
     for idx, stmt in enumerate(statements):
         if stmt is None:
@@ -50,6 +72,7 @@ def parse_sql_file(
                     asset_type=asset_type,
                     file_path=file_path,
                     columns=columns,
+                    has_docs=file_has_docs,
                 )
             )
             exclude = frozenset({name})
@@ -74,6 +97,7 @@ def parse_sql_file(
                     name=query_name,
                     asset_type=AssetType.VIEW,
                     file_path=file_path,
+                    has_docs=file_has_docs,
                     tags={"role": "query_block"},
                 )
             )

@@ -10,6 +10,16 @@ def _edge_pairs(edges: list) -> set[tuple[str, str]]:
     return {(e.source, e.target) for e in edges}
 
 
+def test_sql_leading_comment_sets_has_docs() -> None:
+    sql = """-- pipeline: orders fact
+CREATE TABLE public.orders AS
+SELECT id FROM raw.events;
+"""
+    assets, _ = parse_sql_file("models/orders.sql", sql, dialect="postgres")
+    orders = next(a for a in assets if a.name == "public.orders")
+    assert orders.has_docs is True
+
+
 def test_create_table_as_select_extracts_asset_and_edge() -> None:
     sql = """
     CREATE TABLE public.orders AS
@@ -21,6 +31,7 @@ def test_create_table_as_select_extracts_asset_and_edge() -> None:
     assert _edge_pairs(edges) == {("raw.events", "public.orders")}
     orders = next(a for a in assets if a.name == "public.orders")
     assert orders.asset_type == AssetType.TABLE
+    assert orders.has_docs is False
 
 
 def test_insert_into_select_builds_edge_to_target() -> None:

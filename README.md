@@ -58,9 +58,9 @@ Top-level keys include:
 | --- | --- |
 | `assets`, `edges` | Parsed inventory and lineage (`source` → `target`) |
 | `graph` | `node_count`, `edge_count`, `is_directed_acyclic` |
-| `analytics` | Graph metrics (`dead_asset_count`, `orphan_assets`, fan-out, cycles, …), `dead_asset_analysis`, `test_coverage`, `test_coverage_analysis` (includes `critical_downstream_threshold`) |
+| `analytics` | Graph metrics, `dead_asset_analysis`, `test_coverage` / `test_coverage_analysis`, `documentation_coverage` / `documentation_coverage_analysis` |
 | `findings` | Combined `dead_asset`, `missing_test`, `weak_test_coverage`, … |
-| `scores` | `dead_assets` and `test_coverage` scores (0–100, higher is better for coverage) |
+| `scores` | `dead_assets`, `test_coverage`, and `documentation` scores (0–100; higher is better for coverage/docs) |
 
 Use this shape for CI gates and dashboards.
 
