@@ -81,6 +81,9 @@ def test_scan_format_json_is_valid_json(runner: CliRunner) -> None:
     assert "graph" in data
     assert "analytics" in data
     assert data["graph"]["node_count"] >= 1
+    assert "findings" in data and isinstance(data["findings"], list)
+    assert "scores" in data and "dead_assets" in data["scores"]
+    assert "dead_asset_analysis" in data["analytics"]
     tc = data["analytics"]["test_coverage"]
     assert "asset_count" in tc and "assets_with_tests" in tc and "coverage_ratio" in tc
     assert "Scanning" not in result.stdout

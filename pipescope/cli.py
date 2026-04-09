@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.table import Table
 
 from pipescope import __version__
+from pipescope.analyzers.dead_assets import analyze_dead_assets
 from pipescope.graph import build_pipeline_graph, compute_scan_analytics, graph_summary
 from pipescope.models import Asset, Edge
 from pipescope.parsers import parse_dbt_project, parse_file
@@ -212,6 +213,10 @@ def scan(
     pg = build_pipeline_graph(all_assets, all_edges)
     summary = graph_summary(pg.g)
     analytics = compute_scan_analytics(pg, all_assets)
+    dead_analysis = analyze_dead_assets(pg, all_assets)
+    analytics["dead_asset_analysis"] = dead_analysis.to_analytics_dict()
+    findings = list(dead_analysis.findings)
+    scores = {"dead_assets": dead_analysis.score}
 
     if fmt == "json":
         _ensure_utf8_stdio()
@@ -227,6 +232,8 @@ def scan(
             edges=all_edges,
             graph=summary,
             analytics=analytics,
+            findings=findings,
+            scores=scores,
         )
         sys.stdout.write(payload)
         if not payload.endswith("\n"):
@@ -274,11 +281,14 @@ def scan(
         if tc.get("coverage_ratio") is not None
         else "n/a"
     )
+    dad = analytics["dead_asset_analysis"]
     console.print(
         f"[bold]Analytics:[/] dead assets={analytics['dead_asset_count']}, "
         f"orphans={analytics['orphan_asset_count']}, "
         f"cycles={analytics['cycle_count']}, "
-        f"test coverage={tc['assets_with_tests']}/{tc['asset_count']} ({cov_pct})",
+        f"test coverage={tc['assets_with_tests']}/{tc['asset_count']} ({cov_pct}), "
+        f"dead-asset score={dad['dead_asset_score']} "
+        f"(analyzed dead={dad['dead_count']}/{dad['total_count']})",
     )
 
 

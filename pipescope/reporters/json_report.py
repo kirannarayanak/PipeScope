@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from pipescope.models import Asset, Edge
+from pipescope.models import Asset, Edge, Finding
 
 
 def write_json(path: Path, data: object) -> None:
@@ -27,6 +27,8 @@ def format_scan_json(
     edges: list[Edge],
     graph: dict[str, Any],
     analytics: dict[str, Any] | None = None,
+    findings: list[Finding] | None = None,
+    scores: dict[str, int] | None = None,
 ) -> str:
     """Build a single JSON document for ``pipescope scan --format json``."""
     payload: dict[str, Any] = {
@@ -43,4 +45,8 @@ def format_scan_json(
     }
     if analytics is not None:
         payload["analytics"] = analytics
+    if findings is not None:
+        payload["findings"] = [f.model_dump(mode="json") for f in findings]
+    if scores is not None:
+        payload["scores"] = dict(scores)
     return json.dumps(payload, indent=2, ensure_ascii=False)
