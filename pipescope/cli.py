@@ -13,6 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from pipescope import __version__
+from pipescope.analyzers.complexity import analyze_complexity
 from pipescope.analyzers.dead_assets import (
     analyze_dead_assets,
     parse_dead_asset_terminal_tags_cli,
@@ -58,6 +59,7 @@ def _print_score_panels(
     dad = analytics["dead_asset_analysis"]
     tc = analytics["test_coverage"]
     doc = analytics["documentation_coverage"]
+    comp = analytics["complexity_analysis"]
     cov_pct = (
         f"{100.0 * tc['coverage_ratio']:.1f}%"
         if tc.get("coverage_ratio") is not None
@@ -114,9 +116,21 @@ def _print_score_panels(
     console.print("\n")
     console.print(graph_panel)
     console.print(Columns([dead_panel, tc_panel, doc_panel], equal=True, expand=True))
+    cx_panel = Panel(
+        (
+            f"[bold red]{scores['complexity']}[/bold red]/100\n\n"
+            f"Pipeline average (normalized components)\n"
+            f"80th pct threshold: {comp['percentile_80_threshold']}\n"
+            f"Flagged (≥ p80): {comp['assets_above_percentile']} assets"
+        ),
+        title="Complexity score",
+        subtitle="Higher = more complex",
+        border_style="red",
+    )
+    console.print(cx_panel)
     console.print(
         Panel(
-            f"[bold]{findings_count}[/bold] findings (dead assets + tests + docs)",
+            f"[bold]{findings_count}[/bold] findings (all analyzers)",
             title="Summary",
             border_style="dim",
         )
@@ -334,6 +348,7 @@ def scan(
         critical_downstream_threshold=test_coverage_critical_deps,
     )
     doc_analysis = analyze_documentation_coverage(all_assets)
+    cx_analysis = analyze_complexity(pg, all_assets, root, dialect)
     analytics["dead_asset_analysis"] = dead_analysis.to_analytics_dict()
     analytics["test_coverage"] = {
         "asset_count": tc_analysis.total_count,
@@ -347,15 +362,18 @@ def scan(
         "coverage_ratio": doc_analysis.coverage_ratio,
     }
     analytics["documentation_coverage_analysis"] = doc_analysis.to_analytics_dict()
+    analytics["complexity_analysis"] = cx_analysis.to_analytics_dict()
     findings = (
         list(dead_analysis.findings)
         + list(tc_analysis.findings)
         + list(doc_analysis.findings)
+        + list(cx_analysis.findings)
     )
     scores = {
         "dead_assets": dead_analysis.score,
         "test_coverage": tc_analysis.score,
         "documentation": doc_analysis.score,
+        "complexity": cx_analysis.pipeline_score,
     }
 
     if fmt == "json":

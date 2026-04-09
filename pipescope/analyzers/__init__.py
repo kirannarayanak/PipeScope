@@ -1,5 +1,6 @@
 """Analysis modules (dead assets, coverage, complexity, etc.)."""
 
+from pipescope.analyzers.complexity import analyze_complexity
 from pipescope.analyzers.dead_assets import (
     analyze_dead_assets,
     parse_dead_asset_terminal_tags_cli,
@@ -13,6 +14,7 @@ from pipescope.analyzers.test_coverage import (
 
 __all__ = [
     "DEFAULT_CRITICAL_DOWNSTREAM_THRESHOLD",
+    "analyze_complexity",
     "analyze_dead_assets",
     "analyze_documentation_coverage",
     "analyze_test_coverage",
