@@ -27,6 +27,19 @@ htmlcov/
 # PipeScope snapshots/reports
 .pipescope/
 
+# Optional large clones for real-project-tests (see real-project-tests/VALIDATION.md)
+real-project-tests/jaffle_shop/
+real-project-tests/airflow/
+real-project-tests/spark/
+real-project-tests/dbt-project-evaluator/
+real-project-tests/dbt_artifacts/
+real-project-tests/gitlab-analytics/
+
+# Full scan dumps (optional); commit only *_summary.json + index.json
+real-project-tests/results/*
+!real-project-tests/results/*_summary.json
+!real-project-tests/results/index.json
+
 # OS
 .DS_Store
 Thumbs.db

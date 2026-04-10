@@ -1,0 +1,24 @@
+{
+  "version": "0.1.0",
+  "scan_root": "real-project-tests/airflow/airflow-core/src/airflow/example_dags",
+  "discovered_file_count": 47,
+  "parsed_sql_file_count": 2,
+  "parsed_airflow_file_count": 45,
+  "parsed_spark_file_count": 0,
+  "parsed_dbt_project_count": 0,
+  "node_count": 146,
+  "edge_count": 176,
+  "is_directed_acyclic": true,
+  "findings_count": 221,
+  "scores": {
+    "dead_assets": 69,
+    "test_coverage": 0,
+    "documentation": 1,
+    "complexity": 20,
+    "ownership": 100,
+    "contracts": 100,
+    "cost_hotspots": 100
+  },
+  "scan_duration_seconds": 6.04,
+  "label": "airflow_example_dags"
+}

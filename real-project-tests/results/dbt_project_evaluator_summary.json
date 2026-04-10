@@ -1,0 +1,24 @@
+{
+  "version": "0.1.0",
+  "scan_root": "real-project-tests/dbt-project-evaluator",
+  "discovered_file_count": 183,
+  "parsed_sql_file_count": 34,
+  "parsed_airflow_file_count": 0,
+  "parsed_spark_file_count": 0,
+  "parsed_dbt_project_count": 6,
+  "node_count": 149,
+  "edge_count": 171,
+  "is_directed_acyclic": true,
+  "findings_count": 253,
+  "scores": {
+    "dead_assets": 74,
+    "test_coverage": 0,
+    "documentation": 45,
+    "complexity": 13,
+    "ownership": 100,
+    "contracts": 100,
+    "cost_hotspots": 79
+  },
+  "scan_duration_seconds": 16.26,
+  "label": "dbt_project_evaluator"
+}

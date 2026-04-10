@@ -6,6 +6,22 @@ Universal static analyzer for data pipelines. Point it at a Git repository to an
 
 - Python 3.11+
 
+## Install
+
+**From PyPI** (after the package is published):
+
+```bash
+pip install pipescope
+```
+
+**From a source checkout**:
+
+```bash
+pip install .
+```
+
+For local development, use the editable install in [Setup](#setup) below.
+
 ## Setup
 
 ```bash
@@ -29,6 +45,8 @@ ruff check pipescope tests
 ```
 
 Optional: `pre-commit run --all-files` runs the same hooks as on commit (Ruff, YAML/TOML checks, whitespace).
+
+Publishing a release: see [RELEASING.md](RELEASING.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ### Windows terminal
 

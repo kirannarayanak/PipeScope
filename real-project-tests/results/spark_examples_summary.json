@@ -1,0 +1,24 @@
+{
+  "version": "0.1.0",
+  "scan_root": "real-project-tests/spark/examples",
+  "discovered_file_count": 94,
+  "parsed_sql_file_count": 0,
+  "parsed_airflow_file_count": 0,
+  "parsed_spark_file_count": 94,
+  "parsed_dbt_project_count": 0,
+  "node_count": 34,
+  "edge_count": 132,
+  "is_directed_acyclic": false,
+  "findings_count": 53,
+  "scores": {
+    "dead_assets": 86,
+    "test_coverage": 0,
+    "documentation": 84,
+    "complexity": 16,
+    "ownership": 100,
+    "contracts": 100,
+    "cost_hotspots": 100
+  },
+  "scan_duration_seconds": 5.47,
+  "label": "spark_examples"
+}

@@ -1,0 +1,133 @@
+{
+  "generated_by": "real-project-tests/run_validation.py",
+  "targets_ok": [
+    "jaffle_shop",
+    "dbt_artifacts",
+    "dbt_project_evaluator",
+    "airflow_example_dags",
+    "spark_examples"
+  ],
+  "targets_failed": [],
+  "summaries": [
+    {
+      "version": "0.1.0",
+      "scan_root": "real-project-tests/jaffle_shop",
+      "discovered_file_count": 8,
+      "parsed_sql_file_count": 0,
+      "parsed_airflow_file_count": 0,
+      "parsed_spark_file_count": 0,
+      "parsed_dbt_project_count": 1,
+      "node_count": 15,
+      "edge_count": 22,
+      "is_directed_acyclic": true,
+      "findings_count": 14,
+      "scores": {
+        "dead_assets": 80,
+        "test_coverage": 100,
+        "documentation": 40,
+        "complexity": 55,
+        "ownership": 100,
+        "contracts": 100,
+        "cost_hotspots": 72
+      },
+      "scan_duration_seconds": 2.92,
+      "label": "jaffle_shop"
+    },
+    {
+      "version": "0.1.0",
+      "scan_root": "real-project-tests/dbt_artifacts",
+      "discovered_file_count": 77,
+      "parsed_sql_file_count": 29,
+      "parsed_airflow_file_count": 0,
+      "parsed_spark_file_count": 0,
+      "parsed_dbt_project_count": 2,
+      "node_count": 60,
+      "edge_count": 89,
+      "is_directed_acyclic": true,
+      "findings_count": 94,
+      "scores": {
+        "dead_assets": 71,
+        "test_coverage": 2,
+        "documentation": 80,
+        "complexity": 30,
+        "ownership": 100,
+        "contracts": 100,
+        "cost_hotspots": 86
+      },
+      "scan_duration_seconds": 7.03,
+      "label": "dbt_artifacts"
+    },
+    {
+      "version": "0.1.0",
+      "scan_root": "real-project-tests/dbt-project-evaluator",
+      "discovered_file_count": 183,
+      "parsed_sql_file_count": 34,
+      "parsed_airflow_file_count": 0,
+      "parsed_spark_file_count": 0,
+      "parsed_dbt_project_count": 6,
+      "node_count": 149,
+      "edge_count": 171,
+      "is_directed_acyclic": true,
+      "findings_count": 253,
+      "scores": {
+        "dead_assets": 74,
+        "test_coverage": 0,
+        "documentation": 45,
+        "complexity": 13,
+        "ownership": 100,
+        "contracts": 100,
+        "cost_hotspots": 79
+      },
+      "scan_duration_seconds": 16.26,
+      "label": "dbt_project_evaluator"
+    },
+    {
+      "version": "0.1.0",
+      "scan_root": "real-project-tests/airflow/airflow-core/src/airflow/example_dags",
+      "discovered_file_count": 47,
+      "parsed_sql_file_count": 2,
+      "parsed_airflow_file_count": 45,
+      "parsed_spark_file_count": 0,
+      "parsed_dbt_project_count": 0,
+      "node_count": 146,
+      "edge_count": 176,
+      "is_directed_acyclic": true,
+      "findings_count": 221,
+      "scores": {
+        "dead_assets": 69,
+        "test_coverage": 0,
+        "documentation": 1,
+        "complexity": 20,
+        "ownership": 100,
+        "contracts": 100,
+        "cost_hotspots": 100
+      },
+      "scan_duration_seconds": 6.04,
+      "label": "airflow_example_dags"
+    },
+    {
+      "version": "0.1.0",
+      "scan_root": "real-project-tests/spark/examples",
+      "discovered_file_count": 94,
+      "parsed_sql_file_count": 0,
+      "parsed_airflow_file_count": 0,
+      "parsed_spark_file_count": 94,
+      "parsed_dbt_project_count": 0,
+      "node_count": 34,
+      "edge_count": 132,
+      "is_directed_acyclic": false,
+      "findings_count": 53,
+      "scores": {
+        "dead_assets": 86,
+        "test_coverage": 0,
+        "documentation": 84,
+        "complexity": 16,
+        "ownership": 100,
+        "contracts": 100,
+        "cost_hotspots": 100
+      },
+      "scan_duration_seconds": 5.47,
+      "label": "spark_examples"
+    }
+  ]
+}
