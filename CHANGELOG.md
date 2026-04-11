@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.1.2 — 2026-04-11
+
+### Added
+
+- **MkDocs** site under `docs/` (Getting Started, Configuration, Analyzers, CI/CD, Contributing, Changelog via snippet).
+- **GitHub Pages** workflow **`.github/workflows/docs.yml`** (build + deploy on `main`).
+- **`[docs]`** optional dependency (`mkdocs`, `mkdocs-material`, `pymdown-extensions`).
+- **`CONTRIBUTING.md`** pointing to the docs site; **Documentation** URL in `pyproject.toml` and README badge.
+
+### Changed
+
+- Expanded module and public API docstrings (`pipescope`, `scanner`, `graph` helpers, `parse_file`, `parse_dbt_project`, reporters, terminal/HTML helpers).
+
 ## 0.1.1 — 2026-04-10
 
 ### Added

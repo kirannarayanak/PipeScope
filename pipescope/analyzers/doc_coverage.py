@@ -21,6 +21,8 @@ def _severity_missing_doc(asset: Asset) -> Severity:
 
 @dataclass
 class DocumentationCoverageResult:
+    """Aggregated documentation coverage score, counts, and findings."""
+
     findings: list[Finding] = field(default_factory=list)
     score: int = 100
     documented_count: int = 0

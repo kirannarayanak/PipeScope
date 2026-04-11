@@ -16,7 +16,7 @@ class DiscoveredFile:
 
 
 def normalize_exclude_dir_names(raw: str | None) -> frozenset[str]:
-    """Split comma/semicolon-separated directory name tokens (case-insensitive match)."""
+    """Return lowercased directory basename tokens from a CLI ``--exclude`` string."""
     if not raw or not str(raw).strip():
         return frozenset()
     out: list[str] = []
@@ -31,10 +31,10 @@ def scan_directory(
     root: Path,
     exclude_dir_names: frozenset[str] | None = None,
 ) -> list[DiscoveredFile]:
-    """Walk a repo and classify every data-related file.
+    """Walk *root* and classify SQL, dbt, Python DAGs/jobs, and contract YAML.
 
-    Descent skips hidden directories (name starts with ``.``) and any directory
-    whose name matches ``exclude_dir_names`` (case-insensitive).
+    Prunes hidden directories (``.*``) and any directory whose basename is in
+    *exclude_dir_names* (compared case-insensitively).
     """
     root = root.resolve()
     if not root.is_dir():
@@ -78,9 +78,9 @@ def scan_directory(
 
 
 def iter_file_paths_under(root: Path, exclude_dir_names: frozenset[str]) -> list[Path]:
-    """List every file under *root* (non-hidden files, pruned dirs).
+    """Return non-hidden files under *root* using the same pruning as :func:`scan_directory`.
 
-    Used to find ``dbt_project.yml`` when the primary discovery pass is empty.
+    Used to locate ``dbt_project.yml`` when discovery returns no project entries.
     """
     root = root.resolve()
     exc = exclude_dir_names or frozenset()

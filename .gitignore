@@ -13,6 +13,9 @@ dist/
 build/
 *.egg
 
+# MkDocs
+site/
+
 # Tools
 .pytest_cache/
 .mypy_cache/

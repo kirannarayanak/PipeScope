@@ -115,7 +115,11 @@ def parse_dbt_project(
     root: Path,
     exclude_dir_names: frozenset[str] | None = None,
 ) -> tuple[list[Asset], list[Edge]]:
-    """Parse dbt files under *root* into PipeScope assets and edges."""
+    """Parse ``dbt_project.yml`` and model SQL under *root* into assets and edges.
+
+    *exclude_dir_names*: path segments (lowercased) to skip when scanning model
+    trees (mirrors CLI ``--exclude`` directory tokens).
+    """
     root = root.resolve()
     exclude = exclude_dir_names or frozenset()
     project_file = root / "dbt_project.yml"

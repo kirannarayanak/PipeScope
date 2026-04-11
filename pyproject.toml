@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pipescope"
-version = "0.1.1"
+version = "0.1.2"
 description = "Universal static analyzer for data pipelines"
 readme = "README.md"
 license = "MIT"
@@ -31,8 +31,14 @@ dev = [
     "pre-commit>=3.0",
     "Pillow>=10.0",
 ]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "pymdown-extensions>=10.0",
+]
 
 [project.urls]
+Documentation = "https://kirannarayanak.github.io/PipeScope/"
 Repository = "https://github.com/kirannarayanak/PipeScope"
 Changelog = "https://github.com/kirannarayanak/PipeScope/blob/main/CHANGELOG.md"
 

@@ -58,7 +58,10 @@ def print_terminal_report(
     html_report_path: str,
     parse_warnings: list[str] | None = None,
 ) -> None:
-    """Render terminal output with Rich panels, tables, and progress bars."""
+    """Render a Rich report: assets, edges, graph summary, scores, findings, footer.
+
+    When *parse_warnings* is non-empty, shows a yellow panel listing skipped files.
+    """
     console.print(f"[bold purple]Scanning {scan_root}...[/]")
     console.print(f"Found {discovered_file_count} data files")
 

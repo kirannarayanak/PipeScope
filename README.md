@@ -3,6 +3,9 @@
 Universal static analyzer for data pipelines. Point it at a Git repository to analyze SQL, dbt, Airflow, Spark, and data contracts without a database or cloud account.
 
 [![CI](https://github.com/kirannarayanak/PipeScope/actions/workflows/ci.yml/badge.svg)](https://github.com/kirannarayanak/PipeScope/actions/workflows/ci.yml)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-8A2BE2)](https://kirannarayanak.github.io/PipeScope/)
+
+**Full documentation:** [kirannarayanak.github.io/PipeScope](https://kirannarayanak.github.io/PipeScope/) (MkDocs, deployed from `main`).
 
 ## Quickstart
 
@@ -89,6 +92,14 @@ Run the test suite and linter locally:
 ```bash
 pytest
 ruff check pipescope tests
+```
+
+Documentation site (MkDocs + Material):
+
+```bash
+pip install -e ".[docs]"
+mkdocs serve
+# open http://127.0.0.1:8000
 ```
 
 Optional: `pre-commit run --all-files` runs the same hooks as on commit (Ruff, YAML/TOML checks, whitespace).

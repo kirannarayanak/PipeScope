@@ -1,0 +1,58 @@
+site_name: PipeScope
+site_description: Universal static analyzer for data pipelines (SQL, dbt, Airflow, Spark, contracts).
+site_url: https://kirannarayanak.github.io/PipeScope/
+repo_url: https://github.com/kirannarayanak/PipeScope
+repo_name: kirannarayanak/PipeScope
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Configuration: configuration.md
+  - Analyzers reference: analyzers.md
+  - CI/CD integration: ci-cd.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets:
+      check_paths: true
+      base_path:
+        - .
+        - docs
+  - admonition
+  - pymdownx.details
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+# Keep demo assets out of the nav (still copied as static files under /demo/).
+exclude_docs: |
+  demo/README.md

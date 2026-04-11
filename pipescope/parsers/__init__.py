@@ -29,7 +29,12 @@ def parse_file(
     *,
     scan_root: Path | None = None,
 ) -> tuple[list[Asset], list[Edge]]:
-    """Route a discovered file to the appropriate parser and return assets + edges."""
+    """Parse *f* by ``file_type`` (SQL, dbt, Airflow, Spark) and return assets + edges.
+
+    *dialect* is passed to SQLGlot for ``sql`` only. *scan_root* makes ``file_path``
+    in assets relative for stable reports. Caller should handle I/O and parser
+    exceptions if strict behavior is required.
+    """
     content = f.path.read_text(encoding="utf-8", errors="ignore")
     display = _display_path(f.path, scan_root)
     t = f.file_type

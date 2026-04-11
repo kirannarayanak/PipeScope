@@ -32,8 +32,8 @@ Artifacts appear under `dist/` (`pipescope-<version>-py3-none-any.whl` and `.tar
 3. Tag the release:
 
    ```bash
-   git tag -a v0.1.0 -m "Release v0.1.0"
-   git push origin v0.1.0
+   git tag -a v0.1.2 -m "Release v0.1.2"
+   git push origin v0.1.2
    ```
 
 ## After publish

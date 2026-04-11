@@ -19,9 +19,11 @@ class PipelineGraph:
         self.g: nx.DiGraph = nx.DiGraph()
 
     def add_asset(self, asset: Asset) -> None:
+        """Add *asset* as a node; attributes mirror :meth:`Asset.model_dump`."""
         self.g.add_node(asset.name, **asset.model_dump(mode="json"))
 
     def add_edge(self, edge: Edge) -> None:
+        """Add ``edge.source → edge.target`` with remaining edge fields as attributes."""
         data = edge.model_dump(mode="json")
         u = data.pop("source")
         v = data.pop("target")
@@ -72,7 +74,7 @@ class PipelineGraph:
             return []
 
     def depth(self, node: str) -> int:
-        """Shortest distance from any root (in-degree 0) to *node*; largest over roots."""
+        """Max shortest-path hop count from any root (in-degree 0) down to *node*."""
         try:
             roots = [n for n in self.g.nodes() if self.g.in_degree(n) == 0]
             if not roots:
@@ -89,7 +91,7 @@ class PipelineGraph:
 
 
 def build_pipeline_graph(assets: list[Asset], edges: list[Edge]) -> PipelineGraph:
-    """Build a :class:`PipelineGraph`; topology matches :func:`build_graph`."""
+    """Return a :class:`PipelineGraph` with the same nodes/edges as :func:`build_graph`."""
     pg = PipelineGraph()
     for asset in assets:
         pg.add_asset(asset)

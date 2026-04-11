@@ -138,7 +138,11 @@ def _append_history(path: Path, snapshot: dict[str, Any]) -> list[dict[str, Any]
 
 
 def write_report(path: Path, payload: dict[str, Any]) -> None:
-    """Write a single-file interactive HTML report with inline CSS/JS."""
+    """Render ``payload`` (scan dict) to *path* as a single HTML file.
+
+    Embeds CSS/JS, D3 lineage, sortable findings, score cards, and appends a
+    small history series next to *path* (``.history.jsonl``) for sparkline trends.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     now = datetime.now(tz=UTC)
 
