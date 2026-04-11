@@ -1,6 +1,6 @@
 # Contributing to LineageScope
 
-See the **[Contributing guide](https://kirannarayanak.github.io/lineagescope/contributing/)** on the documentation site (source: `docs/contributing.md`).
+See the **[Contributing guide](https://kirannarayanak.github.io/Lineagescope/contributing/)** on the documentation site (source: `docs/contributing.md`).
 
 Quick local setup:
 

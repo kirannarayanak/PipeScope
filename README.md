@@ -3,9 +3,9 @@
 Universal static analyzer for data pipelines. Point it at a Git repository to analyze SQL, dbt, Airflow, Spark, and data contracts without a database or cloud account.
 
 [![CI](https://github.com/kirannarayanak/lineagescope/actions/workflows/ci.yml/badge.svg)](https://github.com/kirannarayanak/lineagescope/actions/workflows/ci.yml)
-[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-8A2BE2)](https://kirannarayanak.github.io/lineagescope/)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-8A2BE2)](https://kirannarayanak.github.io/Lineagescope/)
 
-**Full documentation:** [kirannarayanak.github.io/lineagescope](https://kirannarayanak.github.io/lineagescope/) (MkDocs, deployed from `main`).
+**Full documentation:** [kirannarayanak.github.io/Lineagescope](https://kirannarayanak.github.io/Lineagescope/) (MkDocs, deployed from `main`).
 
 ## Quickstart
 

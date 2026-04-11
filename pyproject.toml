@@ -45,7 +45,7 @@ docs = [
 ]
 
 [project.urls]
-Documentation = "https://kirannarayanak.github.io/lineagescope/"
+Documentation = "https://kirannarayanak.github.io/Lineagescope/"
 Repository = "https://github.com/kirannarayanak/lineagescope"
 Changelog = "https://github.com/kirannarayanak/lineagescope/blob/main/CHANGELOG.md"
 
