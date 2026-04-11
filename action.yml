@@ -1,5 +1,12 @@
 name: LineageScope
-description: Static analysis for data pipelines
+author: Kiran Narayana
+description: >
+  Run LineageScope in CI: static analysis for SQL, dbt, Airflow, Spark, and ODCS
+  contracts—lineage, quality scores, GitHub Actions annotations, and configurable
+  pass/fail thresholds via lineagescope ci.
+branding:
+  icon: git-branch
+  color: blue
 inputs:
   path:
     default: "."

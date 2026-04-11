@@ -29,6 +29,10 @@ The repo ships **`action.yml`** at the root. Example workflow step:
 
 Inputs: `path`, `threshold`, `dialect`, `exclude`.
 
+### GitHub Marketplace
+
+To list a composite action on the [Marketplace](https://github.com/marketplace?type=actions), GitHub currently expects a **thin repository** that contains **only** the action (root `action.yml` plus minimal files such as a README)—**not** a monorepo that also defines workflow files under `.github/workflows/`. This repo keeps CI/docs workflows here, so it is consumed via `uses: owner/Lineagescope@vX` from releases or branches. If you want a Marketplace listing, publish the same `action.yml` (and branding metadata) from a **dedicated** public repository with no workflow files, then [draft a release](https://docs.github.com/en/actions/sharing-automations/creating-actions/publishing-actions-in-github-marketplace) and check **Publish this action to the GitHub Marketplace** (requires the Marketplace developer agreement and 2FA).
+
 ## JSON gates with `jq`
 
 LineageScope does not fail on findings alone; gate on **`scores`** or **finding categories**:
