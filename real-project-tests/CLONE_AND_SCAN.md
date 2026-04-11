@@ -40,6 +40,17 @@ cd ..\..
 lineagescope scan real-project-tests\spark\examples --exclude node_modules,venv,.venv,.git,__pycache__,target
 ```
 
+## SQLMesh + dbt examples — [TobikoData/sqlmesh](https://github.com/TobikoData/sqlmesh)
+
+Open-source SQLMesh monorepo (Python orchestration + dbt-style projects in `examples/` and test fixtures).
+
+```powershell
+cd real-project-tests
+git clone --depth 1 https://github.com/TobikoData/sqlmesh.git
+cd ..
+lineagescope scan real-project-tests\sqlmesh --dialect postgres --exclude node_modules,venv,.venv,.git,__pycache__,.tox,.pytest_cache,dist,build,.eggs
+```
+
 ## Larger dbt (optional)
 
 - [brooklyn-data/dbt_artifacts](https://github.com/brooklyn-data/dbt_artifacts)  

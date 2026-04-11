@@ -38,6 +38,7 @@ real-project-tests/spark/
 real-project-tests/dbt-project-evaluator/
 real-project-tests/dbt_artifacts/
 real-project-tests/gitlab-analytics/
+real-project-tests/sqlmesh/
 
 # Full scan dumps (optional); commit only *_summary.json + index.json
 real-project-tests/results/*
