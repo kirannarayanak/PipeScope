@@ -24,14 +24,35 @@ Optional: `pre-commit run --all-files`.
 
 ## Documentation site
 
-Build the MkDocs site locally:
+Build and preview locally:
 
 ```bash
 pip install -e ".[docs]"
 mkdocs serve
 ```
 
-Publish is handled by **GitHub Actions** (see `.github/workflows/docs.yml`) to **GitHub Pages** when `main` updates.
+`mkdocs serve` **keeps running** until you stop it (**Ctrl+C**). That is normal—it is a live dev server, not a hang.
+
+Because `site_url` targets GitHub **Project** Pages (`…/PipeScope/`), the default preview URL is:
+
+`http://127.0.0.1:8000/PipeScope/`
+
+To preview at the site root instead (`http://127.0.0.1:8000/`):
+
+```powershell
+# PowerShell
+$env:PIPESCOPE_DOCS_SITE_URL = "http://127.0.0.1:8000/"
+mkdocs serve
+```
+
+```bash
+# bash
+PIPESCOPE_DOCS_SITE_URL=http://127.0.0.1:8000/ mkdocs serve
+```
+
+One-off static build: `mkdocs build` (output in `site/`).
+
+Publish is handled by **GitHub Actions** (see `.github/workflows/docs.yml`) to **GitHub Pages** when `main` updates (CI does **not** set `PIPESCOPE_DOCS_SITE_URL`, so production keeps the real `site_url`).
 
 ## Pull requests
 

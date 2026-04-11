@@ -99,7 +99,8 @@ Documentation site (MkDocs + Material):
 ```bash
 pip install -e ".[docs]"
 mkdocs serve
-# open http://127.0.0.1:8000
+# open http://127.0.0.1:8000/PipeScope/  (Ctrl+C to stop the dev server)
+# or: PIPESCOPE_DOCS_SITE_URL=http://127.0.0.1:8000/ mkdocs serve  → http://127.0.0.1:8000/
 ```
 
 Optional: `pre-commit run --all-files` runs the same hooks as on commit (Ruff, YAML/TOML checks, whitespace).

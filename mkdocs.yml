@@ -1,6 +1,8 @@
 site_name: PipeScope
 site_description: Universal static analyzer for data pipelines (SQL, dbt, Airflow, Spark, contracts).
-site_url: https://kirannarayanak.github.io/PipeScope/
+# GitHub Pages uses /PipeScope/; MkDocs mirrors that in `mkdocs serve` (not stuck—server runs until Ctrl+C).
+# For a local root URL (http://127.0.0.1:8000/), set PIPESCOPE_DOCS_SITE_URL=http://127.0.0.1:8000/
+site_url: !ENV [PIPESCOPE_DOCS_SITE_URL, 'https://kirannarayanak.github.io/PipeScope/']
 repo_url: https://github.com/kirannarayanak/PipeScope
 repo_name: kirannarayanak/PipeScope
 edit_uri: edit/main/docs/
