@@ -27,7 +27,8 @@ htmlcov/
 .idea/
 .vscode/
 
-# PipeScope snapshots/reports
+# LineageScope snapshots/reports (legacy .pipescope/ from older releases)
+.lineagescope/
 .pipescope/
 
 # Optional large clones for real-project-tests (see real-project-tests/VALIDATION.md)

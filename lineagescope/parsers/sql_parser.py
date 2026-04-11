@@ -6,7 +6,7 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.errors import ErrorLevel
 
-from pipescope.models import Asset, AssetType, Edge
+from lineagescope.models import Asset, AssetType, Edge
 
 
 def _sql_file_has_leading_documentation(content: str) -> bool:

@@ -13,8 +13,8 @@ import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
-import pipescope.cli as cli_mod
-from pipescope.cli import app
+import lineagescope.cli as cli_mod
+from lineagescope.cli import app
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
@@ -88,7 +88,7 @@ def test_scan_help_shows_path_and_dialect(runner: CliRunner) -> None:
     assert "dialect" in result.stdout.lower() or "--dialect" in result.stdout
     assert "test-coverage-critical-deps" in result.stdout
     assert "--exclude" in result.stdout or "-e" in result.stdout
-    assert "pipescope scan" in result.stdout and "json" in result.stdout.lower()
+    assert "lineagescope scan" in result.stdout and "json" in result.stdout.lower()
 
 
 def test_diff_help_shows_exclude(runner: CliRunner) -> None:
@@ -169,9 +169,9 @@ def test_scan_writes_snapshot_file(runner: CliRunner, tmp_path: Path) -> None:
     assert result.exit_code == 0, result.stderr
 
     day = datetime.now().strftime("%Y-%m-%d")
-    snap = scan_root / ".pipescope" / "snapshots" / f"{day}.json"
+    snap = scan_root / ".lineagescope" / "snapshots" / f"{day}.json"
     assert snap.is_file()
-    snapshots_dir = scan_root / ".pipescope" / "snapshots"
+    snapshots_dir = scan_root / ".lineagescope" / "snapshots"
     stamped = [
         p
         for p in snapshots_dir.glob("*.json")
@@ -186,7 +186,7 @@ def test_scan_prunes_old_timestamped_snapshots(runner: CliRunner, tmp_path: Path
     src = FIXTURES / "scanner_sample"
     scan_root = tmp_path / "scan_root_prune"
     shutil.copytree(src, scan_root)
-    snapshots_dir = scan_root / ".pipescope" / "snapshots"
+    snapshots_dir = scan_root / ".lineagescope" / "snapshots"
     snapshots_dir.mkdir(parents=True, exist_ok=True)
     old_file = snapshots_dir / "2000-01-01T000000_000000Z.json"
     old_file.write_text("{}", encoding="utf-8")
@@ -197,7 +197,7 @@ def test_scan_prunes_old_timestamped_snapshots(runner: CliRunner, tmp_path: Path
         color=False,
         env={
             "PYTHONUTF8": "1",
-            "PIPESCOPE_SNAPSHOT_RETENTION_DAYS": "0",
+            "LINEAGESCOPE_SNAPSHOT_RETENTION_DAYS": "0",
         },
     )
     assert result.exit_code == 0, result.stderr
@@ -313,8 +313,8 @@ def test_ci_command_emits_annotations_and_passes(
     )
     assert result.exit_code == 0, result.stdout + result.stderr
     out = result.stdout
-    assert "PipeScope overall score: 90" in out
-    assert "::warning title=PipeScope::" in out or "::notice title=PipeScope::" in out
+    assert "LineageScope overall score: 90" in out
+    assert "::warning title=LineageScope::" in out or "::notice title=LineageScope::" in out
 
 
 def test_ci_command_fails_build_below_threshold(

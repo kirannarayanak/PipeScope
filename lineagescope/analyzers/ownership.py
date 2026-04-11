@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from pipescope.models import Asset, Finding, Severity
+from lineagescope.models import Asset, Finding, Severity
 
 # ~6 months for stale detection
 STALE_DELTA = timedelta(days=183)

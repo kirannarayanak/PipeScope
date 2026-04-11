@@ -168,7 +168,7 @@ def write_report(path: Path, payload: dict[str, Any]) -> None:
     )
     template = env.get_template("report.html.j2")
     html = template.render(
-        project_name=Path(str(payload.get("scan_root", "PipeScope"))).name or "PipeScope",
+        project_name=Path(str(payload.get("scan_root", "LineageScope"))).name or "LineageScope",
         scan_root=str(payload.get("scan_root", "")),
         scan_date=now.strftime("%Y-%m-%d %H:%M:%S UTC"),
         overall_score=overall,

@@ -2,8 +2,8 @@
 
 import json
 
-from pipescope.models import Asset, AssetType, Edge
-from pipescope.reporters.json_report import format_scan_json
+from lineagescope.models import Asset, AssetType, Edge
+from lineagescope.reporters.json_report import format_scan_json
 
 
 def test_format_scan_json_roundtrip() -> None:

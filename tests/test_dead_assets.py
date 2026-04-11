@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from pipescope.analyzers.dead_assets import (
+from lineagescope.analyzers.dead_assets import (
     DEFAULT_TERMINAL_TAG_MARKERS,
     analyze_dead_assets,
     parse_dead_asset_terminal_tags_cli,
     parse_dead_asset_whitelist_cli,
 )
-from pipescope.graph import build_pipeline_graph
-from pipescope.models import Asset, AssetType, Edge, Severity
+from lineagescope.graph import build_pipeline_graph
+from lineagescope.models import Asset, AssetType, Edge, Severity
 
 
 def test_dead_asset_score_and_findings_simple_chain() -> None:

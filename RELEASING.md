@@ -1,8 +1,8 @@
-# Releasing PipeScope
+# Releasing LineageScope
 
 ## Preconditions
 
-- `pytest` and `ruff check pipescope tests` pass.
+- `pytest` and `ruff check lineagescope tests` pass.
 - Version bumped in `pyproject.toml` (`[project].version`) and a new section added in `CHANGELOG.md`.
 - Git working tree clean; changes merged on `main` (or your release branch).
 
@@ -32,11 +32,11 @@ Artifacts appear under `dist/` (`lineagescope-<version>-py3-none-any.whl` and `.
 3. Tag the release:
 
    ```bash
-   git tag -a v0.1.3 -m "Release v0.1.3"
-   git push origin v0.1.3
+   git tag -a v0.2.0 -m "Release v0.2.0"
+   git push origin v0.2.0
    ```
 
 ## After publish
 
-- Confirm `pip install lineagescope` installs the expected version (`pipescope --help` should work).
+- Confirm `pip install lineagescope` installs the expected version (`lineagescope --help` should work).
 - Update any marketing or demo docs that reference install instructions.

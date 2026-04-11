@@ -1,4 +1,4 @@
-/* PipeScope docs — custom look (works with Material light + slate) */
+/* LineageScope docs — custom look (works with Material light + slate) */
 
 :root,
 [data-md-color-scheme="default"] {
@@ -28,7 +28,7 @@
 }
 
 /* Hero band on home */
-.pipescope-hero {
+.lineagescope-hero {
   padding: 2.4rem 2rem 2rem;
   margin: -1.25rem -1.25rem 2.75rem;
   border-radius: 0 0 1.1rem 1.1rem;
@@ -37,7 +37,7 @@
   border-top: none;
 }
 
-.pipescope-hero h1 {
+.lineagescope-hero h1 {
   margin-top: 0;
   font-weight: 800;
   letter-spacing: -0.035em;
@@ -49,7 +49,7 @@
   background-clip: text;
 }
 
-.pipescope-hero > p:first-of-type {
+.lineagescope-hero > p:first-of-type {
   font-size: 1.08rem;
   line-height: 1.65;
   max-width: 42rem;
@@ -57,7 +57,7 @@
   opacity: 0.92;
 }
 
-.pipescope-tagline {
+.lineagescope-tagline {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -66,7 +66,7 @@
   list-style: none;
 }
 
-.pipescope-tagline li {
+.lineagescope-tagline li {
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -79,14 +79,14 @@
 }
 
 /* Feature cards grid */
-.pipescope-features {
+.lineagescope-features {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 1rem;
   margin: 2rem 0 2.5rem;
 }
 
-a.pipescope-card {
+a.lineagescope-card {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -102,31 +102,31 @@ a.pipescope-card {
   color: inherit !important;
 }
 
-a.pipescope-card:hover {
+a.lineagescope-card:hover {
   border-color: var(--md-accent-fg-color);
   box-shadow: 0 6px 28px var(--ps-card-hover);
   transform: translateY(-2px);
 }
 
-a.pipescope-card strong {
+a.lineagescope-card strong {
   font-size: 1.05rem;
   color: var(--md-primary-fg-color);
 }
 
-a.pipescope-card .pipescope-card-sub {
+a.lineagescope-card .lineagescope-card-sub {
   font-size: 0.88rem;
   line-height: 1.45;
   opacity: 0.82;
 }
 
-a.pipescope-card .pipescope-card-ico {
+a.lineagescope-card .lineagescope-card-ico {
   font-size: 1.35rem;
   line-height: 1;
   margin-bottom: 0.15rem;
 }
 
 /* Section titles */
-h2.pipescope-section {
+h2.lineagescope-section {
   margin-top: 2.25rem;
   padding-bottom: 0.35rem;
   border-bottom: 2px solid var(--md-default-fg-color--lightest);

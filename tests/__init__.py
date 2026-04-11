@@ -1,1 +1,1 @@
-"""PipeScope tests."""
+"""LineageScope tests."""

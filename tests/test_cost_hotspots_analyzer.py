@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pipescope.analyzers.cost_hotspots import analyze_cost_hotspots
-from pipescope.graph import build_pipeline_graph
-from pipescope.models import Asset, AssetType, Edge
+from lineagescope.analyzers.cost_hotspots import analyze_cost_hotspots
+from lineagescope.graph import build_pipeline_graph
+from lineagescope.models import Asset, AssetType, Edge
 
 
 def test_hotspot_weights_downstream_more_than_upstream_only(tmp_path: Path) -> None:

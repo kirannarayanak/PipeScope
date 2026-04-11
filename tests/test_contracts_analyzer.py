@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from pipescope.analyzers.contracts import (
+from lineagescope.analyzers.contracts import (
     analyze_contract_compliance,
     find_asset_for_contract,
 )
-from pipescope.graph import build_pipeline_graph
-from pipescope.models import Asset, AssetType
-from pipescope.parsers.odcs_parser import ParsedContract
+from lineagescope.graph import build_pipeline_graph
+from lineagescope.models import Asset, AssetType
+from lineagescope.parsers.odcs_parser import ParsedContract
 
 
 def test_compliant_when_columns_and_types_match() -> None:

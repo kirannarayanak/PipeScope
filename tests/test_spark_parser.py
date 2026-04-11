@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from pipescope.models import AssetType
-from pipescope.parsers.spark_parser import parse_spark_file
+from lineagescope.models import AssetType
+from lineagescope.parsers.spark_parser import parse_spark_file
 
 
 def test_spark_sql_extracts_table_refs() -> None:

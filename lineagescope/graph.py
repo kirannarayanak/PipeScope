@@ -6,7 +6,7 @@ from typing import Any
 
 import networkx as nx
 
-from pipescope.models import Asset, Edge
+from lineagescope.models import Asset, Edge
 
 # Asset types treated as intentional sinks (e.g. dashboards) — excluded from "dead asset" lists.
 _TERMINAL_ASSET_TYPES: frozenset[str] = frozenset()

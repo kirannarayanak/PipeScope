@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pipescope.analyzers.complexity import analyze_complexity
-from pipescope.graph import build_pipeline_graph
-from pipescope.models import Asset, AssetType, Edge, Severity
+from lineagescope.analyzers.complexity import analyze_complexity
+from lineagescope.graph import build_pipeline_graph
+from lineagescope.models import Asset, AssetType, Edge, Severity
 
 
 def test_complexity_pipeline_score_and_percentile_flag(tmp_path: Path) -> None:

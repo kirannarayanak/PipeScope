@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from pipescope.graph import PipelineGraph
-from pipescope.models import Asset, AssetType, Finding, Severity
+from lineagescope.graph import PipelineGraph
+from lineagescope.models import Asset, AssetType, Finding, Severity
 
 
 def _coverage_scope(assets: list[Asset]) -> list[Asset]:

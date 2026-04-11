@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from pipescope.scanner import DiscoveredFile, normalize_exclude_dir_names, scan_directory
+from lineagescope.scanner import DiscoveredFile, normalize_exclude_dir_names, scan_directory
 
 FIXTURE_ROOT = Path(__file__).resolve().parent / "fixtures" / "scanner_sample"
 

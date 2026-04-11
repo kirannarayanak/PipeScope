@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from pipescope.models import Asset, AssetType, Finding, Severity
+from lineagescope.models import Asset, AssetType, Finding, Severity
 
 
 def _doc_scope(assets: list[Asset]) -> list[Asset]:

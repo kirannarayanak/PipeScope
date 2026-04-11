@@ -11,7 +11,7 @@ import yaml
 from sqlglot import exp
 from sqlglot.errors import ErrorLevel
 
-from pipescope.models import Asset, AssetType, Edge
+from lineagescope.models import Asset, AssetType, Edge
 
 REF_PATTERN = re.compile(r"\{\{\s*ref\(['\"]([^'\"]+)['\"]\)\s*\}\}")
 SOURCE_PATTERN = re.compile(r"\{\{\s*source\(['\"]([^'\"]+)['\"],\s*['\"]([^'\"]+)['\"]\)\s*\}\}")

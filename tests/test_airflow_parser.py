@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from pipescope.models import AssetType
-from pipescope.parsers.airflow_parser import parse_airflow_file
+from lineagescope.models import AssetType
+from lineagescope.parsers.airflow_parser import parse_airflow_file
 
 
 def test_parse_airflow_sample_dag_extracts_tasks_and_dependencies() -> None:

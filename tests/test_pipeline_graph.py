@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import networkx as nx
 
-from pipescope.graph import PipelineGraph
-from pipescope.models import Asset, AssetType, Edge
+from lineagescope.graph import PipelineGraph
+from lineagescope.models import Asset, AssetType, Edge
 
 
 def _table(name: str) -> Asset:

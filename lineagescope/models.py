@@ -61,7 +61,7 @@ class Finding(BaseModel):
 
 
 class ScanResult(BaseModel):
-    """Complete result of a PipeScope scan."""
+    """Complete result of a LineageScope scan."""
 
     assets: list[Asset] = Field(default_factory=list)
     edges: list[Edge] = Field(default_factory=list)

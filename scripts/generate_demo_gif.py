@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build docs/demo/pipescope-demo.gif (Pillow) for README embedding.
+"""Build docs/demo/lineagescope-demo.gif (Pillow) for README embedding.
 
 Prefer a real recording via asciinema + agg (see docs/demo/README.md). This
 script produces a terminal-styled GIF when agg is not available or for CI
@@ -12,10 +12,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT_GIF = ROOT / "docs" / "demo" / "pipescope-demo.gif"
+OUT_GIF = ROOT / "docs" / "demo" / "lineagescope-demo.gif"
 
 LINES = [
-    "$ pipescope scan . --format terminal",
+    "$ lineagescope scan . --format terminal",
     "",
     "Walking repository ... done",
     "dbt packages .......... done",
@@ -24,7 +24,7 @@ LINES = [
     "",
     "Found 37 data files",
     "Overall health score 78/100",
-    "HTML report: /tmp/pipescope-report.html",
+    "HTML report: /tmp/lineagescope-report.html",
 ]
 
 

@@ -6,9 +6,9 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from pipescope.graph import PipelineGraph
-from pipescope.models import Asset, Finding, Severity
-from pipescope.parsers.odcs_parser import ParsedContract
+from lineagescope.graph import PipelineGraph
+from lineagescope.models import Asset, Finding, Severity
+from lineagescope.parsers.odcs_parser import ParsedContract
 
 
 def _scope_assets(assets: list[Asset]) -> list[Asset]:

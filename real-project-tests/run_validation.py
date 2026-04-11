@@ -1,12 +1,13 @@
-"""Run PipeScope on pinned real-world checkouts; write compact JSON summaries.
+"""Run LineageScope on pinned real-world checkouts; write compact JSON summaries.
 
 Usage (from repo root, dev env active):
     python real-project-tests/run_validation.py
 
-Requires `pipescope` on PATH (e.g. pip install -e ".[dev]" from PipeScope root).
+Requires ``lineagescope`` on PATH (e.g. pip install -e ".[dev]" from repo root).
 
-Optional: set ``PIPESCOPE_PRIVATE_SCAN_PATH`` to an extra directory (e.g. your work
-repo). A scan is appended as ``private_workspace``; ``scan_root`` in JSON is redacted.
+Optional: set ``LINEAGESCOPE_PRIVATE_SCAN_PATH`` (legacy ``PIPESCOPE_PRIVATE_SCAN_PATH``)
+to an extra directory (e.g. your work repo). A scan is appended as ``private_workspace``;
+``scan_root`` in JSON is redacted.
 """
 
 from __future__ import annotations
@@ -22,14 +23,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 REPO_ROOT = ROOT.parent.resolve()
 RESULTS = ROOT / "results"
-PRIVATE_ENV = "PIPESCOPE_PRIVATE_SCAN_PATH"
 
 
-def _pipescope_exe() -> str | None:
-    w = shutil.which("pipescope")
+def _private_scan_path() -> str | None:
+    for key in ("LINEAGESCOPE_PRIVATE_SCAN_PATH", "PIPESCOPE_PRIVATE_SCAN_PATH"):
+        v = os.getenv(key, "").strip()
+        if v:
+            return v
+    return None
+
+
+def _lineagescope_exe() -> str | None:
+    w = shutil.which("lineagescope")
     if w:
         return w
-    scripts = Path(sys.executable).parent / "pipescope.exe"
+    scripts = Path(sys.executable).parent / "lineagescope.exe"
     return str(scripts) if scripts.is_file() else None
 
 
@@ -63,9 +71,9 @@ def _summarize(payload: dict) -> dict:
 
 
 def _run_scan(name: str, scan_path: Path) -> tuple[int, dict | None, str | None]:
-    exe = _pipescope_exe()
+    exe = _lineagescope_exe()
     if not exe:
-        return 2, None, "pipescope executable not found"
+        return 2, None, "lineagescope executable not found"
 
     env = os.environ.copy()
     env.setdefault("PYTHONUTF8", "1")
@@ -115,18 +123,18 @@ def main() -> int:
         ("spark_examples", ROOT / "spark" / "examples"),
     ]
 
-    priv = os.environ.get(PRIVATE_ENV, "").strip()
+    priv = _private_scan_path()
     if priv:
         p = Path(os.path.expandvars(priv)).expanduser().resolve()
         if p.is_dir():
             targets.append(("private_workspace", p))
             print(
-                f"NOTE optional {PRIVATE_ENV} -> extra scan private_workspace",
+                "NOTE optional LINEAGESCOPE_PRIVATE_SCAN_PATH -> extra scan private_workspace",
                 flush=True,
             )
         else:
             print(
-                f"WARN {PRIVATE_ENV} is set but not a directory: {priv!r}",
+                f"WARN private scan path is set but not a directory: {priv!r}",
                 flush=True,
             )
 

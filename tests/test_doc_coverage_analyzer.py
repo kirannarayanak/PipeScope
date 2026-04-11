@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from pipescope.analyzers.doc_coverage import analyze_documentation_coverage
-from pipescope.models import Asset, AssetType, Severity
+from lineagescope.analyzers.doc_coverage import analyze_documentation_coverage
+from lineagescope.models import Asset, AssetType, Severity
 
 
 def test_documentation_score_and_findings() -> None:

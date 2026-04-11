@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pipescope.models import Asset, Edge
-from pipescope.scanner import DiscoveredFile
+from lineagescope.models import Asset, Edge
+from lineagescope.scanner import DiscoveredFile
 
 from .airflow_parser import parse_airflow_file as parse_airflow_dag
 from .dbt_parser import parse_dbt_model, parse_dbt_project, parse_dbt_schema

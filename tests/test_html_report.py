@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pipescope.reporters.html_report import write_report
+from lineagescope.reporters.html_report import write_report
 
 
 def _payload() -> dict:
@@ -40,7 +40,7 @@ def test_write_report_renders_sections(tmp_path: Path) -> None:
     report = tmp_path / "report.html"
     write_report(report, _payload())
     html = report.read_text(encoding="utf-8")
-    assert "PipeScope Report" in html
+    assert "LineageScope Report" in html
     assert "Overall Health" in html
     assert "Category" in html
     assert "Lineage Graph" in html

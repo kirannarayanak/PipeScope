@@ -12,7 +12,7 @@ jobs:
           python-version: "3.11"
       - run: pip install -e ".[dev]"
       - run: ruff check .
-      - run: pytest --cov=pipescope
+      - run: pytest --cov=lineagescope
 
   docs:
     runs-on: ubuntu-latest

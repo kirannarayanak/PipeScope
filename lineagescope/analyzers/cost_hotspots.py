@@ -9,9 +9,9 @@ from typing import Any
 
 import networkx as nx
 
-from pipescope.graph import PipelineGraph
-from pipescope.models import Asset, AssetType, Finding, Severity
-from pipescope.parsers.sql_parser import (
+from lineagescope.graph import PipelineGraph
+from lineagescope.models import Asset, AssetType, Finding, Severity
+from lineagescope.parsers.sql_parser import (
     detect_cost_patterns,
     detect_partition_filter_issues,
 )

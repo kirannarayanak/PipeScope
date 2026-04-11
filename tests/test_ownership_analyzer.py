@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from pipescope.analyzers import ownership as ownership_mod
-from pipescope.analyzers.ownership import (
+from lineagescope.analyzers import ownership as ownership_mod
+from lineagescope.analyzers.ownership import (
     OwnershipAnalysisResult,
     analyze_ownership,
     codeowners_pattern_matches,
     parse_codeowners_text,
 )
-from pipescope.models import Asset, AssetType
+from lineagescope.models import Asset, AssetType
 
 
 def test_codeowners_glob_basename_only_matches_any_depth() -> None:
@@ -47,7 +47,7 @@ def test_last_codeowners_pattern_wins() -> None:
         "*.sql @first\n"
         "models/*.sql @second\n"
     )
-    from pipescope.analyzers.ownership import _codeowners_owner_for_path
+    from lineagescope.analyzers.ownership import _codeowners_owner_for_path
 
     assert _codeowners_owner_for_path(entries, "models/x.sql") == "@second"
 

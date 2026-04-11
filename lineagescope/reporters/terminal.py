@@ -8,7 +8,7 @@ from rich.progress_bar import ProgressBar
 from rich.table import Table
 from rich.text import Text
 
-from pipescope.models import Asset, Edge, Finding, Severity
+from lineagescope.models import Asset, Edge, Finding, Severity
 
 
 def _overall_health_score(scores: dict[str, int]) -> int:

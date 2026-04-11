@@ -1,29 +1,29 @@
-# PipeScope
+# LineageScope
 
 Universal static analyzer for data pipelines. Point it at a Git repository to analyze SQL, dbt, Airflow, Spark, and data contracts without a database or cloud account.
 
-[![CI](https://github.com/kirannarayanak/PipeScope/actions/workflows/ci.yml/badge.svg)](https://github.com/kirannarayanak/PipeScope/actions/workflows/ci.yml)
-[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-8A2BE2)](https://kirannarayanak.github.io/PipeScope/)
+[![CI](https://github.com/kirannarayanak/lineagescope/actions/workflows/ci.yml/badge.svg)](https://github.com/kirannarayanak/lineagescope/actions/workflows/ci.yml)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-8A2BE2)](https://kirannarayanak.github.io/lineagescope/)
 
-**Full documentation:** [kirannarayanak.github.io/PipeScope](https://kirannarayanak.github.io/PipeScope/) (MkDocs, deployed from `main`).
+**Full documentation:** [kirannarayanak.github.io/lineagescope](https://kirannarayanak.github.io/lineagescope/) (MkDocs, deployed from `main`).
 
 ## Quickstart
 
 ```bash
 pip install lineagescope
-pipescope scan . --format json
-pipescope ci --threshold 70 --path .
+lineagescope scan . --format json
+lineagescope ci --threshold 70 --path .
 ```
 
-Install the package as **`lineagescope`** on PyPI; the **command** is still **`pipescope`**. (The name `pipescope` on PyPI is a different project.)
+Install from PyPI with **`pip install lineagescope`**; the CLI command is **`lineagescope`**. (The unrelated CPU tool [`pipescope`](https://pypi.org/project/pipescope/) is a different package on PyPI.)
 
-*(From a checkout, use `pip install -e ".[dev]"` instead of `pip install lineagescope`.)*
+*(From a checkout, use `pip install -e ".[dev]"`.)*
 
 ## Demo (terminal GIF)
 
-![PipeScope scan demo](docs/demo/pipescope-demo.gif)
+![LineageScope scan demo](docs/demo/lineagescope-demo.gif)
 
-The GIF above is a stylized preview (generated with `python scripts/generate_demo_gif.py`, requires [Pillow](https://python-pillow.org/)). For a pixel-perfect terminal capture, record with [asciinema](https://asciinema.org/) and convert with [agg](https://github.com/asciinema/agg); see [docs/demo/README.md](docs/demo/README.md). The repo includes [docs/demo/pipescope-demo.cast](docs/demo/pipescope-demo.cast) as a sample cast you can pass to `agg`.
+The GIF above is a stylized preview (generated with `python scripts/generate_demo_gif.py`, requires [Pillow](https://python-pillow.org/)). For a pixel-perfect terminal capture, record with [asciinema](https://asciinema.org/) and convert with [agg](https://github.com/asciinema/agg); see [docs/demo/README.md](docs/demo/README.md). The repo includes [docs/demo/lineagescope-demo.cast](docs/demo/lineagescope-demo.cast) as a sample cast you can pass to `agg`.
 
 ## Architecture
 
@@ -93,7 +93,7 @@ Run the test suite and linter locally:
 
 ```bash
 pytest
-ruff check pipescope tests
+ruff check lineagescope tests
 ```
 
 Documentation site (MkDocs + Material):
@@ -101,8 +101,8 @@ Documentation site (MkDocs + Material):
 ```bash
 pip install -e ".[docs]"
 mkdocs serve
-# open http://127.0.0.1:8000/PipeScope/  (Ctrl+C to stop the dev server)
-# or: PIPESCOPE_DOCS_SITE_URL=http://127.0.0.1:8000/ mkdocs serve  → http://127.0.0.1:8000/
+# open http://127.0.0.1:8000/lineagescope/  (Ctrl+C to stop the dev server)
+# or: LINEAGESCOPE_DOCS_SITE_URL=http://127.0.0.1:8000/ mkdocs serve  → http://127.0.0.1:8000/
 ```
 
 Optional: `pre-commit run --all-files` runs the same hooks as on commit (Ruff, YAML/TOML checks, whitespace).
@@ -111,16 +111,16 @@ Publishing a release: see [RELEASING.md](RELEASING.md) and [CHANGELOG.md](CHANGE
 
 ### Windows terminal
 
-On Windows, PipeScope reconfigures stdout/stderr to UTF-8 when supported so Rich tables and paths render correctly. For best results, use **Windows Terminal** or **PowerShell 7+**; you can also set `PYTHONUTF8=1` in the environment or run `chcp 65001` in legacy consoles.
+On Windows, LineageScope reconfigures stdout/stderr to UTF-8 when supported so Rich tables and paths render correctly. For best results, use **Windows Terminal** or **PowerShell 7+**; you can also set `PYTHONUTF8=1` in the environment or run `chcp 65001` in legacy consoles.
 
 ## Usage
 
 ```bash
-pipescope --help
-pipescope scan .
-pipescope scan path/to/repo --dialect postgres
-pipescope scan . --format json
-pipescope scan . --exclude node_modules,venv,.venv,.git
+lineagescope --help
+lineagescope scan .
+lineagescope scan path/to/repo --dialect postgres
+lineagescope scan . --format json
+lineagescope scan . --exclude node_modules,venv,.venv,.git
 ```
 
 Terminal mode shows a **Rich progress** bar while walking the tree, loading dbt projects, parsing files, and reading contracts. Unreadable or failing files are **skipped** with a warning (see `parse_warnings` in JSON or the yellow panel in the terminal).
@@ -128,8 +128,8 @@ Terminal mode shows a **Rich progress** bar while walking the tree, loading dbt 
 Analyzer tuning (optional):
 
 ```bash
-pipescope scan . --dead-asset-whitelist my_export,legacy_sink
-pipescope scan . --test-coverage-critical-deps 15
+lineagescope scan . --dead-asset-whitelist my_export,legacy_sink
+lineagescope scan . --test-coverage-critical-deps 15
 ```
 
 ### JSON output (`--format json`)
@@ -197,7 +197,7 @@ Use this shape for CI gates and dashboards.
 
 ### Ownership
 
-PipeScope resolves an owner per asset in this order: **CODEOWNERS** (path match, last matching line wins) → **dbt** `meta.owner` on models and source tables in `schema.yml` → **git** last commit author on that file. Synthetic SQL query-block assets are excluded from ownership scoring.
+LineageScope resolves an owner per asset in this order: **CODEOWNERS** (path match, last matching line wins) → **dbt** `meta.owner` on models and source tables in `schema.yml` → **git** last commit author on that file. Synthetic SQL query-block assets are excluded from ownership scoring.
 
 - **CODEOWNERS**: place `.github/CODEOWNERS` or `CODEOWNERS` at the repository root (or under the scan root if not using git). Patterns follow GitHub-style globs (`*`, `**`, `/`).
 - **dbt**: under `models:` entries use `meta.owner`; under `sources:` → `tables:` use `meta.owner` per table.
@@ -207,19 +207,19 @@ Terminal mode prints an **Ownership score** panel alongside the other Rich panel
 
 ### Data contracts (ODCS)
 
-PipeScope discovers YAML files that look like [Open Data Contract Standard](https://github.com/bitol-io/open-data-contract-standard) documents (for example `dataContractSpecification` plus `dataset`, or `kind: DataContract` with a top-level `schema:` list). Table and column identifiers are read from `name`, then `physicalName`, then `logicalName` when the earlier keys are absent. Each contract table with at least one column definition is compared to a **matching asset** by name (exact, case-insensitive, or last path segment such as `schema.table` → `table`).
+LineageScope discovers YAML files that look like [Open Data Contract Standard](https://github.com/bitol-io/open-data-contract-standard) documents (for example `dataContractSpecification` plus `dataset`, or `kind: DataContract` with a top-level `schema:` list). Table and column identifiers are read from `name`, then `physicalName`, then `logicalName` when the earlier keys are absent. Each contract table with at least one column definition is compared to a **matching asset** by name (exact, case-insensitive, or last path segment such as `schema.table` → `table`).
 
 - **Columns**: Contract column names are compared to `Asset.columns` (from `CREATE TABLE`/`VIEW` SQL or dbt `schema.yml`). Missing or extra columns emit findings; extras are **info** severity.
-- **Types**: When both the contract and the asset declare a type (`logicalType` / `physicalType` / legacy `type`, vs dbt `data_type` or SQL `CREATE` column types), PipeScope normalizes families (e.g. `int` ↔ `integer`, `varchar` ↔ `string`) and flags **warning** mismatches.
+- **Types**: When both the contract and the asset declare a type (`logicalType` / `physicalType` / legacy `type`, vs dbt `data_type` or SQL `CREATE` column types), LineageScope normalizes families (e.g. `int` ↔ `integer`, `varchar` ↔ `string`) and flags **warning** mismatches.
 - **Score**: `(compliant_contracts / total_contracts) * 100`, where a contract is compliant when it resolves to an asset and produces no contract findings. Contracts with no column list are ignored for the denominator.
 
 Terminal mode includes a **Contract compliance** panel.
 
 ### Cost hotspots
 
-PipeScope scans each **`.sql`** model/table/view asset (excluding synthetic query-block rows), reads the file once per path, and runs static checks from `detect_cost_patterns()` in `sql_parser`: **`SELECT_STAR`**, **`CROSS_JOIN`**, **`MISSING_WHERE_CLAUSE`** (DELETE/UPDATE without `WHERE`), **`SELECT_WITHOUT_WHERE`** (top-level `SELECT` with `FROM` but no `WHERE`), **`NO_LIMIT`** (top-level `SELECT` with `FROM` but no `LIMIT`/`FETCH`), plus **`MISSING_PARTITION_FILTER`** when an asset references a table tagged with **`partition_key`** in dbt `meta` (see below) and the `WHERE` clause does not reference that column.
+LineageScope scans each **`.sql`** model/table/view asset (excluding synthetic query-block rows), reads the file once per path, and runs static checks from `detect_cost_patterns()` in `sql_parser`: **`SELECT_STAR`**, **`CROSS_JOIN`**, **`MISSING_WHERE_CLAUSE`** (DELETE/UPDATE without `WHERE`), **`SELECT_WITHOUT_WHERE`** (top-level `SELECT` with `FROM` but no `WHERE`), **`NO_LIMIT`** (top-level `SELECT` with `FROM` but no `LIMIT`/`FETCH`), plus **`MISSING_PARTITION_FILTER`** when an asset references a table tagged with **`partition_key`** in dbt `meta` (see below) and the `WHERE` clause does not reference that column.
 
-**Downstream weighting**: For each flagged asset, PipeScope computes `len(nx.descendants(graph, asset))` in the lineage graph and **weighted impact** = `pattern_count × (1 + 0.12 × min(50, downstream_count))`. The **`ranked`** list in analytics is sorted by this weighted impact descending.
+**Downstream weighting**: For each flagged asset, LineageScope computes `len(nx.descendants(graph, asset))` in the lineage graph and **weighted impact** = `pattern_count × (1 + 0.12 × min(50, downstream_count))`. The **`ranked`** list in analytics is sorted by this weighted impact descending.
 
 **dbt**: Set `meta.partition_key` on a model or source table in `schema.yml` to tag that logical table name; the analyzer maps `asset.name` → partition column for partition checks.
 
@@ -227,31 +227,31 @@ Terminal mode includes a **Cost hotspots** panel.
 
 ## CI
 
-On GitHub, [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs **Ruff** (`ruff check .`) and **pytest** with coverage (`pytest --cov=pipescope`) on Python **3.11** for every **push** and **pull_request**.
+On GitHub, [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs **Ruff** (`ruff check .`) and **pytest** with coverage (`pytest --cov=lineagescope`) on Python **3.11** for every **push** and **pull_request**.
 
 ### JSON gates (jq)
 
-PipeScope does not exit with a non-zero status when findings are present. In CI, use `--format json` and assert on `scores` or `findings` (for example with [jq](https://jqlang.org/), available on GitHub-hosted runners).
+LineageScope does not exit with a non-zero status when findings are present. In CI, use `--format json` and assert on `scores` or `findings` (for example with [jq](https://jqlang.org/), available on GitHub-hosted runners).
 
 **Minimum contract compliance score (90):**
 
 ```bash
-pipescope scan . --format json | jq -e '.scores.contracts >= 90'
+lineagescope scan . --format json | jq -e '.scores.contracts >= 90'
 ```
 
 **Fail if any contract-related finding exists:**
 
 ```bash
-pipescope scan . --format json | jq -e '[.findings[] | select(.category | test("^contract_"))] | length == 0'
+lineagescope scan . --format json | jq -e '[.findings[] | select(.category | test("^contract_"))] | length == 0'
 ```
 
 **Multiple checks in one step (write JSON once):**
 
 ```bash
-pipescope scan . --format json > pipescope-scan.json
-jq -e '.scores.contracts >= 90' pipescope-scan.json
-jq -e '.scores.dead_assets >= 80' pipescope-scan.json
-jq -e '[.findings[] | select(.category | test("^contract_"))] | length == 0' pipescope-scan.json
+lineagescope scan . --format json > lineagescope-scan.json
+jq -e '.scores.contracts >= 90' lineagescope-scan.json
+jq -e '.scores.dead_assets >= 80' lineagescope-scan.json
+jq -e '[.findings[] | select(.category | test("^contract_"))] | length == 0' lineagescope-scan.json
 ```
 
 `jq -e` exits with status 1 when the filter yields `false` or `null`, which fails the shell step. On Windows without `jq`, use PowerShell (`ConvertFrom-Json`) or run these checks in GitHub Actions / WSL where `jq` is available.

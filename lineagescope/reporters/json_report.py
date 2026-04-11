@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from pipescope.models import Asset, Edge, Finding
+from lineagescope.models import Asset, Edge, Finding
 
 
 def write_json(path: Path, data: object) -> None:
@@ -31,7 +31,7 @@ def format_scan_json(
     scores: dict[str, int] | None = None,
     parse_warnings: list[str] | None = None,
 ) -> str:
-    """Build a single JSON document for ``pipescope scan --format json``.
+    """Build a single JSON document for ``lineagescope scan --format json``.
 
     ``analytics`` may include graph summaries, ``dead_asset_analysis``, test and
     documentation coverage, ``complexity_analysis``, ``ownership_analysis``,

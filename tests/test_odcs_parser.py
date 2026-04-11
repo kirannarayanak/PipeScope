@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pipescope.parsers.odcs_parser import ParsedContract, parse_odcs_file
+from lineagescope.parsers.odcs_parser import ParsedContract, parse_odcs_file
 
 
 def test_parse_legacy_dataset_schema() -> None:

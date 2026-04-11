@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.2.0 — 2026-04-11
+
+### Fixed
+
+- CLI `--help` uses plain Click formatting (`rich_markup_mode=None`) so option names are not split by Rich ANSI codes; help is stable for pipes, CI, and tests.
+
+### Changed (breaking)
+
+- **Python package** directory renamed from `pipescope` to **`lineagescope`** (`import lineagescope`, `from lineagescope…`).
+- **CLI** entry point is **`lineagescope`** (no `pipescope` shim). **`Typer` / `--help`** usage shows `lineagescope`.
+- **Snapshot directory** under each scan root is now **`.lineagescope/snapshots/`** (was `.pipescope/snapshots/`). Env **`LINEAGESCOPE_SNAPSHOT_RETENTION_DAYS`** (legacy **`PIPESCOPE_SNAPSHOT_RETENTION_DAYS`** still honored if unset).
+- **Docs / branding** use **LineageScope**; demo assets renamed to `lineagescope-demo.*`; **`LINEAGESCOPE_DOCS_SITE_URL`** for local MkDocs root preview (legacy `PIPESCOPE_DOCS_SITE_URL` no longer read by `mkdocs.yml`—set the new name).
+
 ## 0.1.3 — 2026-04-11
 
 ### Changed

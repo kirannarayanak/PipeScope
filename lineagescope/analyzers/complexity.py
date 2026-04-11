@@ -11,8 +11,8 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.errors import ErrorLevel
 
-from pipescope.graph import PipelineGraph
-from pipescope.models import Asset, Finding, Severity
+from lineagescope.graph import PipelineGraph
+from lineagescope.models import Asset, Finding, Severity
 
 WEIGHT_DEPTH = 0.25
 WEIGHT_FANOUT = 0.25

@@ -1,13 +1,13 @@
 """Tests for graph utilities."""
 
-from pipescope.graph import (
+from lineagescope.graph import (
     build_graph,
     build_pipeline_graph,
     compute_scan_analytics,
     graph_summary,
     new_graph,
 )
-from pipescope.models import Asset, AssetType, Edge
+from lineagescope.models import Asset, AssetType, Edge
 
 
 def test_new_graph_is_empty_digraph() -> None:

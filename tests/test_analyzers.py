@@ -1,6 +1,6 @@
 """Tests for analyzer stubs."""
 
-from pipescope.analyzers import (
+from lineagescope.analyzers import (
     complexity,
     contracts,
     cost_hotspots,

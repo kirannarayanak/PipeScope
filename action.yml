@@ -1,4 +1,4 @@
-name: PipeScope
+name: LineageScope
 description: Static analysis for data pipelines
 inputs:
   path:
@@ -16,10 +16,10 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Install PipeScope
+    - name: Install LineageScope
       shell: bash
       run: pip install lineagescope
-    - name: Run PipeScope CI gate
+    - name: Run LineageScope CI gate
       shell: bash
       run: |
         EX=()
@@ -27,7 +27,7 @@ runs:
           EX=(--exclude "${{ inputs.exclude }}")
         fi
         if [ -n "${{ inputs.dialect }}" ]; then
-          pipescope ci --threshold "${{ inputs.threshold }}" --path "${{ inputs.path }}" --dialect "${{ inputs.dialect }}" "${EX[@]}"
+          lineagescope ci --threshold "${{ inputs.threshold }}" --path "${{ inputs.path }}" --dialect "${{ inputs.dialect }}" "${EX[@]}"
         else
-          pipescope ci --threshold "${{ inputs.threshold }}" --path "${{ inputs.path }}" "${EX[@]}"
+          lineagescope ci --threshold "${{ inputs.threshold }}" --path "${{ inputs.path }}" "${EX[@]}"
         fi

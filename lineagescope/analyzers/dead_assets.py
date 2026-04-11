@@ -7,8 +7,8 @@ from typing import Any
 
 import networkx as nx
 
-from pipescope.graph import PipelineGraph
-from pipescope.models import Asset, Finding, Severity
+from lineagescope.graph import PipelineGraph
+from lineagescope.models import Asset, Finding, Severity
 
 # Tag substrings (keys or values, case-insensitive) that mark intentional terminal sinks.
 DEFAULT_TERMINAL_TAG_MARKERS: frozenset[str] = frozenset(

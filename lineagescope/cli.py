@@ -1,4 +1,4 @@
-"""Typer CLI entry point for PipeScope."""
+"""Typer CLI entry point for LineageScope."""
 
 from __future__ import annotations
 
@@ -27,26 +27,26 @@ from rich.progress import (
 )
 from rich.table import Table
 
-from pipescope import __version__
-from pipescope.analyzers.complexity import analyze_complexity
-from pipescope.analyzers.contracts import analyze_contract_compliance
-from pipescope.analyzers.cost_hotspots import analyze_cost_hotspots
-from pipescope.analyzers.dead_assets import (
+from lineagescope import __version__
+from lineagescope.analyzers.complexity import analyze_complexity
+from lineagescope.analyzers.contracts import analyze_contract_compliance
+from lineagescope.analyzers.cost_hotspots import analyze_cost_hotspots
+from lineagescope.analyzers.dead_assets import (
     analyze_dead_assets,
     parse_dead_asset_terminal_tags_cli,
     parse_dead_asset_whitelist_cli,
 )
-from pipescope.analyzers.doc_coverage import analyze_documentation_coverage
-from pipescope.analyzers.ownership import analyze_ownership
-from pipescope.analyzers.test_coverage import analyze_test_coverage
-from pipescope.graph import build_pipeline_graph, compute_scan_analytics, graph_summary
-from pipescope.models import Asset, Edge
-from pipescope.parsers import parse_dbt_project, parse_file, parse_odcs_file
-from pipescope.parsers.odcs_parser import ParsedContract
-from pipescope.reporters.html_report import write_report
-from pipescope.reporters.json_report import format_scan_json
-from pipescope.reporters.terminal import print_terminal_report
-from pipescope.scanner import (
+from lineagescope.analyzers.doc_coverage import analyze_documentation_coverage
+from lineagescope.analyzers.ownership import analyze_ownership
+from lineagescope.analyzers.test_coverage import analyze_test_coverage
+from lineagescope.graph import build_pipeline_graph, compute_scan_analytics, graph_summary
+from lineagescope.models import Asset, Edge
+from lineagescope.parsers import parse_dbt_project, parse_file, parse_odcs_file
+from lineagescope.parsers.odcs_parser import ParsedContract
+from lineagescope.reporters.html_report import write_report
+from lineagescope.reporters.json_report import format_scan_json
+from lineagescope.reporters.terminal import print_terminal_report
+from lineagescope.scanner import (
     DiscoveredFile,
     iter_file_paths_under,
     normalize_exclude_dir_names,
@@ -54,9 +54,12 @@ from pipescope.scanner import (
 )
 
 app = typer.Typer(
-    name="pipescope",
-    help="PipeScope: Universal static analyzer for data pipelines.",
+    name="lineagescope",
+    help="LineageScope: Universal static analyzer for data pipelines.",
     no_args_is_help=True,
+    # Plain Click help: Rich-formatted --help embeds ANSI inside tokens, which
+    # breaks piping/grepping and tests; Rich is still used for scan output.
+    rich_markup_mode=None,
 )
 
 def _ensure_utf8_stdio() -> None:
@@ -90,15 +93,15 @@ def _make_console() -> Console:
 
 @app.callback()
 def main() -> None:
-    """PipeScope: scan repos, diff scans across git refs, or run CI gates.
+    """LineageScope: scan repos, diff scans across git refs, or run CI gates.
 
     Examples:
 
-        pipescope scan . --format json
+        lineagescope scan . --format json
 
-        pipescope diff HEAD~1 --path .
+        lineagescope diff HEAD~1 --path .
 
-        pipescope ci --threshold 70 --path .
+        lineagescope ci --threshold 70 --path .
     """
 
 
@@ -349,7 +352,7 @@ def _write_snapshot(scan_root: Path, payload: dict) -> Path | None:
     now = datetime.now(tz=UTC)
     day = now.strftime("%Y-%m-%d")
     stamp = now.strftime("%Y-%m-%dT%H%M%S_%fZ")
-    snapshot_dir = scan_root / ".pipescope" / "snapshots"
+    snapshot_dir = scan_root / ".lineagescope" / "snapshots"
     try:
         snapshot_dir.mkdir(parents=True, exist_ok=True)
         body = json.dumps(payload, indent=2, ensure_ascii=False)
@@ -364,8 +367,12 @@ def _write_snapshot(scan_root: Path, payload: dict) -> Path | None:
 
 
 def _snapshot_retention_days() -> int:
-    """Retention window for snapshots (env: ``PIPESCOPE_SNAPSHOT_RETENTION_DAYS``)."""
-    raw = os.getenv("PIPESCOPE_SNAPSHOT_RETENTION_DAYS", "30").strip()
+    """Days to keep timestamped snapshots (LINEAGESCOPE_* env; legacy PIPESCOPE_* fallback)."""
+    raw = (
+        os.getenv("LINEAGESCOPE_SNAPSHOT_RETENTION_DAYS")
+        or os.getenv("PIPESCOPE_SNAPSHOT_RETENTION_DAYS")
+        or "30"
+    ).strip()
     try:
         days = int(raw)
     except ValueError:
@@ -423,7 +430,7 @@ def _emit_github_annotations(findings: list) -> None:
         cat = getattr(f, "category", "")
         asset = getattr(f, "asset_name", "")
         msg = getattr(f, "message", "")
-        print(f"::{sev} title=PipeScope::{cat} [{asset}] {msg}")
+        print(f"::{sev} title=LineageScope::{cat} [{asset}] {msg}")
 
 
 def _github_pr_number_from_env() -> int | None:
@@ -442,7 +449,7 @@ def _post_pr_comment_if_possible(score: int, threshold: int, findings_count: int
         return False
     body = {
         "body": (
-            f"PipeScope CI result\n\n"
+            f"LineageScope CI result\n\n"
             f"- Overall score: **{score}**\n"
             f"- Threshold: **{threshold}**\n"
             f"- Findings: **{findings_count}**"
@@ -455,7 +462,7 @@ def _post_pr_comment_if_possible(score: int, threshold: int, findings_count: int
         headers={
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github+json",
-            "User-Agent": "pipescope-cli",
+            "User-Agent": "lineagescope-cli",
             "Content-Type": "application/json",
         },
     )
@@ -579,9 +586,9 @@ def _compute_scan_artifacts(
 @app.command(
     epilog=(
         "Examples:\n"
-        "  pipescope scan . --format json\n"
-        "  pipescope scan ./transforms -d snowflake --exclude node_modules,.venv,venv\n"
-        "  pipescope scan . --test-coverage-critical-deps 15"
+        "  lineagescope scan . --format json\n"
+        "  lineagescope scan ./transforms -d snowflake --exclude node_modules,.venv,venv\n"
+        "  lineagescope scan . --test-coverage-critical-deps 15"
     ),
 )
 def scan(
@@ -688,7 +695,7 @@ def scan(
         return
 
     _ensure_utf8_stdio()
-    html_report_path = Path(tempfile.gettempdir()) / "pipescope-report.html"
+    html_report_path = Path(tempfile.gettempdir()) / "lineagescope-report.html"
     write_report(
         html_report_path,
         payload_dict,
@@ -712,8 +719,8 @@ def scan(
 @app.command(
     epilog=(
         "Examples:\n"
-        "  pipescope diff HEAD~1 --path .\n"
-        "  pipescope diff main --exclude node_modules,venv"
+        "  lineagescope diff HEAD~1 --path .\n"
+        "  lineagescope diff main --exclude node_modules,venv"
     ),
 )
 def diff(
@@ -741,7 +748,7 @@ def diff(
         help="Comma-separated directory names to skip while walking (same as scan).",
     ),
 ) -> None:
-    """Compare PipeScope assets and findings: current tree vs a git ref (via worktree)."""
+    """Compare LineageScope assets and findings: current tree vs a git ref (via worktree)."""
     root = Path(path).resolve()
     _ensure_utf8_stdio()
     console = _make_console()
@@ -774,7 +781,7 @@ def diff(
         progress_console=None,
     )
 
-    with tempfile.TemporaryDirectory(prefix="pipescope-diff-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="lineagescope-diff-") as tmp:
         worktree = Path(tmp) / "repo"
         add_cmd = [
             "git",
@@ -881,8 +888,8 @@ def diff(
 @app.command(
     epilog=(
         "Examples:\n"
-        "  pipescope ci --threshold 70\n"
-        "  pipescope ci --path ./dbt --exclude .venv,venv --threshold 80"
+        "  lineagescope ci --threshold 70\n"
+        "  lineagescope ci --path ./dbt --exclude .venv,venv --threshold 80"
     ),
 )
 def ci(
@@ -928,11 +935,11 @@ def ci(
     overall = _overall_health_score(scores)
 
     _ensure_utf8_stdio()
-    print(f"PipeScope overall score: {overall} (threshold: {threshold})")
+    print(f"LineageScope overall score: {overall} (threshold: {threshold})")
     _emit_github_annotations(findings)
     posted = _post_pr_comment_if_possible(overall, threshold, len(findings))
     if posted:
-        print("Posted PipeScope score comment to PR.")
+        print("Posted LineageScope score comment to PR.")
 
     if overall < threshold:
         raise typer.Exit(code=1)

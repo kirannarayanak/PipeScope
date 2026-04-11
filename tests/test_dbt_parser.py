@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pipescope.models import AssetType
-from pipescope.parsers.dbt_parser import parse_dbt_project
+from lineagescope.models import AssetType
+from lineagescope.parsers.dbt_parser import parse_dbt_project
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 

@@ -1,6 +1,6 @@
 # CI/CD integration
 
-## `pipescope ci`
+## `lineagescope ci`
 
 Runs a full scan (same pipeline as `scan`), then:
 
@@ -10,8 +10,8 @@ Runs a full scan (same pipeline as `scan`), then:
 4. Exits with code **`1`** if overall score **&lt; `--threshold`** (default `70`).
 
 ```bash
-pipescope ci --threshold 70 --path .
-pipescope ci --path ./transforms --dialect bigquery --exclude .venv,venv
+lineagescope ci --threshold 70 --path .
+lineagescope ci --path ./transforms --dialect bigquery --exclude .venv,venv
 ```
 
 ## Composite GitHub Action
@@ -19,7 +19,7 @@ pipescope ci --path ./transforms --dialect bigquery --exclude .venv,venv
 The repo ships **`action.yml`** at the root. Example workflow step:
 
 ```yaml
-- uses: kirannarayanak/PipeScope@main
+- uses: kirannarayanak/lineagescope@main
   with:
     path: .
     threshold: "70"
@@ -31,31 +31,31 @@ Inputs: `path`, `threshold`, `dialect`, `exclude`.
 
 ## JSON gates with `jq`
 
-PipeScope does not fail on findings alone; gate on **`scores`** or **finding categories**:
+LineageScope does not fail on findings alone; gate on **`scores`** or **finding categories**:
 
 ```bash
-pipescope scan . --format json | jq -e '.scores.contracts >= 90'
+lineagescope scan . --format json | jq -e '.scores.contracts >= 90'
 ```
 
 ```bash
-pipescope scan . --format json | jq -e '[.findings[] | select(.category | test("^contract_"))] | length == 0'
+lineagescope scan . --format json | jq -e '[.findings[] | select(.category | test("^contract_"))] | length == 0'
 ```
 
 Write JSON once, run multiple checks:
 
 ```bash
-pipescope scan . --format json > pipescope-scan.json
-jq -e '.scores.dead_assets >= 80' pipescope-scan.json
+lineagescope scan . --format json > lineagescope-scan.json
+jq -e '.scores.dead_assets >= 80' lineagescope-scan.json
 ```
 
 ## Snapshots in CI
 
-Scans write **`.pipescope/snapshots/`** under the scan root. In CI, either **persist** that directory as an artifact for trends or **gitignore** it if you only need pass/fail.
+Scans write **`.lineagescope/snapshots/`** under the scan root. In CI, either **persist** that directory as an artifact for trends or **gitignore** it if you only need pass/fail.
 
-## `pipescope diff`
+## `lineagescope diff`
 
 Use locally or in a job with git history to compare **current** assets/findings vs **`HEAD~1`**, **`main`**, or any ref:
 
 ```bash
-pipescope diff HEAD~1 --path . --exclude node_modules
+lineagescope diff HEAD~1 --path . --exclude node_modules
 ```

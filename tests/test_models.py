@@ -5,7 +5,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from pipescope.models import Asset, AssetType, Finding, ScanResult, Severity
+from lineagescope.models import Asset, AssetType, Finding, ScanResult, Severity
 
 
 def test_asset_serializes_to_json_and_validates() -> None:

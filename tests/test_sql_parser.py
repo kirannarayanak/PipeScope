@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from pipescope.models import AssetType
-from pipescope.parsers.sql_parser import (
+from lineagescope.models import AssetType
+from lineagescope.parsers.sql_parser import (
     detect_cost_patterns,
     detect_partition_filter_issues,
     parse_sql_file,

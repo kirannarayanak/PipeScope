@@ -1,12 +1,12 @@
 # Contributing
 
-Thank you for helping improve PipeScope.
+Thank you for helping improve LineageScope.
 
 ## Development setup
 
 ```bash
-git clone https://github.com/kirannarayanak/PipeScope.git
-cd PipeScope
+git clone https://github.com/kirannarayanak/lineagescope.git
+cd lineagescope
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
@@ -16,7 +16,7 @@ pre-commit install
 ## Checks
 
 ```bash
-ruff check pipescope tests
+ruff check lineagescope tests
 pytest
 ```
 
@@ -33,28 +33,28 @@ mkdocs serve
 
 `mkdocs serve` **keeps running** until you stop it (**Ctrl+C**). That is normal—it is a live dev server, not a hang.
 
-Because `site_url` targets GitHub **Project** Pages (`…/PipeScope/`), the default preview URL is:
+Because `site_url` targets GitHub **Project** Pages (`…/lineagescope/`), the default preview URL is:
 
-`http://127.0.0.1:8000/PipeScope/`
+`http://127.0.0.1:8000/lineagescope/`
 
 To preview at the site root instead (`http://127.0.0.1:8000/`):
 
 ```powershell
 # PowerShell
-$env:PIPESCOPE_DOCS_SITE_URL = "http://127.0.0.1:8000/"
+$env:LINEAGESCOPE_DOCS_SITE_URL = "http://127.0.0.1:8000/"
 mkdocs serve
 ```
 
 ```bash
 # bash
-PIPESCOPE_DOCS_SITE_URL=http://127.0.0.1:8000/ mkdocs serve
+LINEAGESCOPE_DOCS_SITE_URL=http://127.0.0.1:8000/ mkdocs serve
 ```
 
 One-off static build: `mkdocs build` (output in `site/`).
 
 **Theming:** global styles live in `docs/stylesheets/extra.css`; the header logo is `docs/assets/logo.svg`. Edit `mkdocs.yml` (`theme.palette`, `theme.font`, `extra_css`) for larger visual changes.
 
-Publish is handled by **GitHub Actions** (see `.github/workflows/docs.yml`) to **GitHub Pages** when `main` updates (CI does **not** set `PIPESCOPE_DOCS_SITE_URL`, so production keeps the real `site_url`).
+Publish is handled by **GitHub Actions** (see `.github/workflows/docs.yml`) to **GitHub Pages** when `main` updates (CI does **not** set `LINEAGESCOPE_DOCS_SITE_URL`, so production keeps the real `site_url`).
 
 ## Pull requests
 
@@ -67,12 +67,12 @@ Publish is handled by **GitHub Actions** (see `.github/workflows/docs.yml`) to *
 
 | Path | Role |
 | --- | --- |
-| `pipescope/cli.py` | Typer CLI, scan orchestration. |
-| `pipescope/scanner.py` | Repository walk and file classification. |
-| `pipescope/parsers/` | SQL, dbt, Airflow, Spark, ODCS parsing. |
-| `pipescope/analyzers/` | Rules and scores. |
-| `pipescope/graph.py` | NetworkX lineage graph. |
-| `pipescope/reporters/` | Terminal, JSON, HTML. |
+| `lineagescope/cli.py` | Typer CLI, scan orchestration. |
+| `lineagescope/scanner.py` | Repository walk and file classification. |
+| `lineagescope/parsers/` | SQL, dbt, Airflow, Spark, ODCS parsing. |
+| `lineagescope/analyzers/` | Rules and scores. |
+| `lineagescope/graph.py` | NetworkX lineage graph. |
+| `lineagescope/reporters/` | Terminal, JSON, HTML. |
 | `tests/` | Pytest suite. |
 
 ## License

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ast
 
-from pipescope.models import Asset, AssetType, Edge
+from lineagescope.models import Asset, AssetType, Edge
 
 
 def parse_airflow_file(file_path: str, content: str) -> tuple[list[Asset], list[Edge]]:

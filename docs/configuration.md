@@ -1,6 +1,6 @@
 # Configuration
 
-## CLI: `pipescope scan`
+## CLI: `lineagescope scan`
 
 | Option | Description |
 | --- | --- |
@@ -12,24 +12,24 @@
 | `--dead-asset-terminal-tags` | Comma-separated substrings matching tag keys/values for intentional sinks (default behavior uses `exposure`, `dashboard`, `export`; pass empty string to disable). |
 | `--test-coverage-critical-deps` | Downstream threshold for CRITICAL missing-test findings (default: `10`). |
 
-`pipescope diff` and `pipescope ci` accept **`--path`**, **`--dialect`**, and **`--exclude`** where applicable.
+`lineagescope diff` and `lineagescope ci` accept **`--path`**, **`--dialect`**, and **`--exclude`** where applicable.
 
 ## Environment variables
 
 | Variable | Used by | Description |
 | --- | --- | --- |
-| `PIPESCOPE_SNAPSHOT_RETENTION_DAYS` | `scan`, `ci` | Days to keep **timestamped** snapshot files under `.pipescope/snapshots/` (daily `YYYY-MM-DD.json` files are not pruned by age). Invalid values fall back to `30`. |
-| `GITHUB_TOKEN` | `ci` | If set in GitHub Actions with `GITHUB_REF` pointing at a PR, PipeScope may post a short score comment (optional). |
+| `LINEAGESCOPE_SNAPSHOT_RETENTION_DAYS` | `scan`, `ci` | Days to keep **timestamped** snapshot files under `.lineagescope/snapshots/` (daily `YYYY-MM-DD.json` files are not pruned by age). Invalid values fall back to `30`. Legacy: `PIPESCOPE_SNAPSHOT_RETENTION_DAYS` is still read if unset. |
+| `GITHUB_TOKEN` | `ci` | If set in GitHub Actions with `GITHUB_REF` pointing at a PR, LineageScope may post a short score comment (optional). |
 | `GITHUB_REF`, `GITHUB_REPOSITORY` | `ci` | Used together with `GITHUB_TOKEN` for PR comment detection. |
-| `PYTHONUTF8` | CLI (Windows) | Set to `1` for reliable UTF-8 in consoles (PipeScope also tries to reconfigure stdio on Windows). |
+| `PYTHONUTF8` | CLI (Windows) | Set to `1` for reliable UTF-8 in consoles (LineageScope also tries to reconfigure stdio on Windows). |
 
 ## Parse warnings
 
-If a file cannot be read or a parser raises, PipeScope **skips** that file and records a message in **`parse_warnings`** (JSON) or a yellow panel (terminal). The scan continues.
+If a file cannot be read or a parser raises, LineageScope **skips** that file and records a message in **`parse_warnings`** (JSON) or a yellow panel (terminal). The scan continues.
 
 ## dbt ownership and partitions
 
-In **`schema.yml`** (or other dbt schema files PipeScope reads):
+In **`schema.yml`** (or other dbt schema files LineageScope reads):
 
 - **`meta.owner`** on models and source tables feeds the ownership analyzer.
 - **`meta.partition_key`** tags models/tables for partition-aware cost checks.

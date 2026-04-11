@@ -9,7 +9,7 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.errors import ErrorLevel
 
-from pipescope.models import Asset, AssetType, Edge
+from lineagescope.models import Asset, AssetType, Edge
 
 
 def parse_spark_file(file_path: str, content: str) -> tuple[list[Asset], list[Edge]]:

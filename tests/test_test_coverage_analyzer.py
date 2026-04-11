@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from pipescope.analyzers.test_coverage import analyze_test_coverage
-from pipescope.graph import build_pipeline_graph
-from pipescope.models import Asset, AssetType, Edge, Severity
+from lineagescope.analyzers.test_coverage import analyze_test_coverage
+from lineagescope.graph import build_pipeline_graph
+from lineagescope.models import Asset, AssetType, Edge, Severity
 
 
 def test_coverage_score_and_missing_test_severity() -> None:
