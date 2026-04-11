@@ -1,0 +1,145 @@
+/* PipeScope docs — custom look (works with Material light + slate) */
+
+:root,
+[data-md-color-scheme="default"] {
+  --ps-gradient-a: #4f46e5;
+  --ps-gradient-b: #0d9488;
+  --ps-hero-bg: linear-gradient(
+    145deg,
+    rgba(79, 70, 229, 0.09),
+    rgba(13, 148, 136, 0.07)
+  );
+  --ps-card-hover: rgba(79, 70, 229, 0.14);
+}
+
+[data-md-color-scheme="slate"] {
+  --ps-hero-bg: linear-gradient(
+    145deg,
+    rgba(129, 140, 248, 0.14),
+    rgba(45, 212, 191, 0.09)
+  );
+  --ps-card-hover: rgba(129, 140, 248, 0.2);
+}
+
+/* Softer header */
+.md-header {
+  box-shadow: 0 1px 0 var(--md-default-fg-color--lightest);
+  backdrop-filter: blur(10px);
+}
+
+/* Hero band on home */
+.pipescope-hero {
+  padding: 2.4rem 2rem 2rem;
+  margin: -1.25rem -1.25rem 2.75rem;
+  border-radius: 0 0 1.1rem 1.1rem;
+  background: var(--ps-hero-bg);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-top: none;
+}
+
+.pipescope-hero h1 {
+  margin-top: 0;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  font-size: 2.35rem;
+  line-height: 1.15;
+  background: linear-gradient(115deg, var(--ps-gradient-a), var(--ps-gradient-b));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.pipescope-hero > p:first-of-type {
+  font-size: 1.08rem;
+  line-height: 1.65;
+  max-width: 42rem;
+  color: var(--md-default-fg-color);
+  opacity: 0.92;
+}
+
+.pipescope-tagline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pipescope-tagline li {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  background: var(--md-default-bg-color);
+  opacity: 0.95;
+}
+
+/* Feature cards grid */
+.pipescope-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+  margin: 2rem 0 2.5rem;
+}
+
+a.pipescope-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1.3rem 1.35rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  background: var(--md-default-bg-color);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
+  text-decoration: none !important;
+  color: inherit !important;
+}
+
+a.pipescope-card:hover {
+  border-color: var(--md-accent-fg-color);
+  box-shadow: 0 6px 28px var(--ps-card-hover);
+  transform: translateY(-2px);
+}
+
+a.pipescope-card strong {
+  font-size: 1.05rem;
+  color: var(--md-primary-fg-color);
+}
+
+a.pipescope-card .pipescope-card-sub {
+  font-size: 0.88rem;
+  line-height: 1.45;
+  opacity: 0.82;
+}
+
+a.pipescope-card .pipescope-card-ico {
+  font-size: 1.35rem;
+  line-height: 1;
+  margin-bottom: 0.15rem;
+}
+
+/* Section titles */
+h2.pipescope-section {
+  margin-top: 2.25rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid var(--md-default-fg-color--lightest);
+  letter-spacing: -0.02em;
+}
+
+/* Active nav */
+.md-nav__link--active {
+  font-weight: 600;
+}
+
+/* Tables slightly rounder in content */
+.md-typeset table:not([class]) {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}

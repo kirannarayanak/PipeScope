@@ -9,22 +9,45 @@ edit_uri: edit/main/docs/
 
 theme:
   name: material
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  font:
+    text: Plus Jakarta Sans
+    code: JetBrains Mono
   palette:
     - scheme: default
-      primary: deep purple
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-    - scheme: slate
-      primary: deep purple
+      primary: indigo
+      accent: teal
       toggle:
         icon: material/brightness-4
-        name: Switch to light mode
+        name: Dark mode
+    - scheme: slate
+      primary: indigo
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Light mode
   features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.footer
+    - navigation.indexes
     - search.suggest
+    - search.highlight
     - content.code.copy
+    - toc.follow
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/kirannarayanak/PipeScope
+      name: GitHub
 
 nav:
   - Home: index.md
@@ -36,6 +59,8 @@ nav:
   - Changelog: changelog.md
 
 markdown_extensions:
+  - md_in_html
+  - attr_list
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.superfences

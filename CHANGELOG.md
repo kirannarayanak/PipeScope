@@ -14,6 +14,7 @@ All notable changes to this project are documented in this file.
 ### Changed
 
 - Expanded module and public API docstrings (`pipescope`, `scanner`, `graph` helpers, `parse_file`, `parse_dbt_project`, reporters, terminal/HTML helpers).
+- Documentation site UI: **logo** (`docs/assets/logo.svg`), **Plus Jakarta Sans** / **JetBrains Mono**, **indigo/teal** palette, sticky **nav tabs**, homepage **hero** + **feature cards**, `docs/stylesheets/extra.css`.
 
 ## 0.1.1 — 2026-04-10
 

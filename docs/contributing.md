@@ -52,6 +52,8 @@ PIPESCOPE_DOCS_SITE_URL=http://127.0.0.1:8000/ mkdocs serve
 
 One-off static build: `mkdocs build` (output in `site/`).
 
+**Theming:** global styles live in `docs/stylesheets/extra.css`; the header logo is `docs/assets/logo.svg`. Edit `mkdocs.yml` (`theme.palette`, `theme.font`, `extra_css`) for larger visual changes.
+
 Publish is handled by **GitHub Actions** (see `.github/workflows/docs.yml`) to **GitHub Pages** when `main` updates (CI does **not** set `PIPESCOPE_DOCS_SITE_URL`, so production keeps the real `site_url`).
 
 ## Pull requests
