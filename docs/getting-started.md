@@ -9,8 +9,10 @@
 **From PyPI** (after publish):
 
 ```bash
-pip install pipescope
+pip install lineagescope
 ```
+
+The PyPI package is **`lineagescope`**; the CLI remains **`pipescope`** (`pipescope scan …`).
 
 **From a git checkout**:
 

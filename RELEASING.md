@@ -15,7 +15,7 @@ python -m pip install --upgrade build hatch
 python -m build
 ```
 
-Artifacts appear under `dist/` (`pipescope-<version>-py3-none-any.whl` and `.tar.gz`).
+Artifacts appear under `dist/` (`lineagescope-<version>-py3-none-any.whl` and `.tar.gz`).
 
 ## Publish to PyPI
 
@@ -24,7 +24,7 @@ Artifacts appear under `dist/` (`pipescope-<version>-py3-none-any.whl` and `.tar
 
    ```bash
    python -m pip install twine
-   python -m twine upload dist/pipescope-*
+   python -m twine upload dist/lineagescope-*
    ```
 
    Or with Hatch: `hatch publish` (configure credentials per [Hatch docs](https://hatch.pypa.io/latest/publish/)).
@@ -32,11 +32,11 @@ Artifacts appear under `dist/` (`pipescope-<version>-py3-none-any.whl` and `.tar
 3. Tag the release:
 
    ```bash
-   git tag -a v0.1.2 -m "Release v0.1.2"
-   git push origin v0.1.2
+   git tag -a v0.1.3 -m "Release v0.1.3"
+   git push origin v0.1.3
    ```
 
 ## After publish
 
-- Confirm `pip install pipescope` installs the expected version.
+- Confirm `pip install lineagescope` installs the expected version (`pipescope --help` should work).
 - Update any marketing or demo docs that reference install instructions.

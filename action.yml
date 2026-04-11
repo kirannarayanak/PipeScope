@@ -18,7 +18,7 @@ runs:
   steps:
     - name: Install PipeScope
       shell: bash
-      run: pip install pipescope
+      run: pip install lineagescope
     - name: Run PipeScope CI gate
       shell: bash
       run: |

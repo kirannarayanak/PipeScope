@@ -10,12 +10,14 @@ Universal static analyzer for data pipelines. Point it at a Git repository to an
 ## Quickstart
 
 ```bash
-pip install pipescope
+pip install lineagescope
 pipescope scan . --format json
 pipescope ci --threshold 70 --path .
 ```
 
-*(From a checkout, use `pip install -e ".[dev]"` instead of `pip install pipescope`.)*
+Install the package as **`lineagescope`** on PyPI; the **command** is still **`pipescope`**. (The name `pipescope` on PyPI is a different project.)
+
+*(From a checkout, use `pip install -e ".[dev]"` instead of `pip install lineagescope`.)*
 
 ## Demo (terminal GIF)
 
@@ -61,7 +63,7 @@ flowchart LR
 **From PyPI** (after the package is published):
 
 ```bash
-pip install pipescope
+pip install lineagescope
 ```
 
 **From a source checkout**:

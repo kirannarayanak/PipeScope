@@ -580,7 +580,8 @@ def _compute_scan_artifacts(
     epilog=(
         "Examples:\n"
         "  pipescope scan . --format json\n"
-        "  pipescope scan ./transforms -d snowflake --exclude node_modules,.venv,venv"
+        "  pipescope scan ./transforms -d snowflake --exclude node_modules,.venv,venv\n"
+        "  pipescope scan . --test-coverage-critical-deps 15"
     ),
 )
 def scan(

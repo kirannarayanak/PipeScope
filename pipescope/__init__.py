@@ -4,4 +4,4 @@
 is the ``pipescope`` command-line tool (:mod:`pipescope.cli`).
 """
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"

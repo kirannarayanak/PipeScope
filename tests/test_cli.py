@@ -78,7 +78,12 @@ def test_root_help_lists_scan_subcommand(runner: CliRunner) -> None:
 
 
 def test_scan_help_shows_path_and_dialect(runner: CliRunner) -> None:
-    result = runner.invoke(app, ["scan", "--help"], color=False)
+    result = runner.invoke(
+        app,
+        ["scan", "--help"],
+        color=False,
+        env={"PYTHONUTF8": "1"},
+    )
     assert result.exit_code == 0
     assert "dialect" in result.stdout.lower() or "--dialect" in result.stdout
     assert "test-coverage-critical-deps" in result.stdout

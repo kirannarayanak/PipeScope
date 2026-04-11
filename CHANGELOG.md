@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.1.3 — 2026-04-11
+
+### Changed
+
+- **PyPI distribution** renamed to **`lineagescope`** so it does not collide with the unrelated [`pipescope`](https://pypi.org/project/pipescope/) package (CPU pipeline visualization). The **CLI command** and **Python import** remain **`pipescope`** (`pip install lineagescope` then `pipescope scan …`).
+
 ## 0.1.2 — 2026-04-11
 
 ### Added
