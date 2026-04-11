@@ -1,0 +1,2 @@
+# Shell scripts must use LF so Docker/Linux bash does not see CR as part of tokens.
+*.sh text eol=lf

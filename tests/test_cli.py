@@ -71,6 +71,12 @@ def test_scan_works_without_dialect_option(runner: CliRunner) -> None:
     assert "Discovered Assets" in result.stdout
 
 
+def test_root_version_flag(runner: CliRunner) -> None:
+    result = runner.invoke(app, ["--version"], color=False)
+    assert result.exit_code == 0
+    assert result.stdout.strip() == cli_mod.__version__
+
+
 def test_root_help_lists_scan_subcommand(runner: CliRunner) -> None:
     result = runner.invoke(app, ["--help"], color=False)
     assert result.exit_code == 0

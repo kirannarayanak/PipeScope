@@ -91,8 +91,23 @@ def _make_console() -> Console:
     )
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(__version__)
+        raise typer.Exit()
+
+
 @app.callback()
-def main() -> None:
+def main(
+    _version: bool = typer.Option(
+        False,
+        "--version",
+        "-V",
+        help="Show version and exit.",
+        callback=_version_callback,
+        is_eager=True,
+    ),
+) -> None:
     """LineageScope: scan repos, diff scans across git refs, or run CI gates.
 
     Examples:
