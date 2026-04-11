@@ -29,6 +29,7 @@ def format_scan_json(
     analytics: dict[str, Any] | None = None,
     findings: list[Finding] | None = None,
     scores: dict[str, int] | None = None,
+    parse_warnings: list[str] | None = None,
 ) -> str:
     """Build a single JSON document for ``pipescope scan --format json``.
 
@@ -55,4 +56,6 @@ def format_scan_json(
         payload["findings"] = [f.model_dump(mode="json") for f in findings]
     if scores is not None:
         payload["scores"] = dict(scores)
+    if parse_warnings:
+        payload["parse_warnings"] = list(parse_warnings)
     return json.dumps(payload, indent=2, ensure_ascii=False)

@@ -10,6 +10,9 @@ inputs:
   dialect:
     default: ""
     description: SQL dialect
+  exclude:
+    default: ""
+    description: Comma-separated directory names to skip (e.g. node_modules,venv)
 runs:
   using: composite
   steps:
@@ -19,8 +22,12 @@ runs:
     - name: Run PipeScope CI gate
       shell: bash
       run: |
+        EX=()
+        if [ -n "${{ inputs.exclude }}" ]; then
+          EX=(--exclude "${{ inputs.exclude }}")
+        fi
         if [ -n "${{ inputs.dialect }}" ]; then
-          pipescope ci --threshold "${{ inputs.threshold }}" --path "${{ inputs.path }}" --dialect "${{ inputs.dialect }}"
+          pipescope ci --threshold "${{ inputs.threshold }}" --path "${{ inputs.path }}" --dialect "${{ inputs.dialect }}" "${EX[@]}"
         else
-          pipescope ci --threshold "${{ inputs.threshold }}" --path "${{ inputs.path }}"
+          pipescope ci --threshold "${{ inputs.threshold }}" --path "${{ inputs.path }}" "${EX[@]}"
         fi

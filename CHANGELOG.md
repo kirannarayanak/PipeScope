@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.1.1 — 2026-04-10
+
+### Added
+
+- README: CI badge, quickstart, Mermaid architecture, embedded demo GIF; `docs/demo/pipescope-demo.cast` + `scripts/generate_demo_gif.py` (Pillow) for regenerating the GIF; expanded `docs/demo/README.md`.
+- CLI: Rich **progress** during terminal `scan`; **`--exclude`** / **`-e`** on `scan`, `diff`, and `ci` (directory-name pruning); **`epilog`** examples on subcommands; **`parse_warnings`** in JSON and a terminal panel when parsers skip files.
+- GitHub Action **`exclude`** input.
+
+### Changed
+
+- File discovery uses `os.walk` with pruned directories (hidden dirs skipped; excludes case-insensitive). dbt project parsing respects the same exclude segments under model paths.
+
 ## 0.1.0 — 2026-04-10
 
 ### Added

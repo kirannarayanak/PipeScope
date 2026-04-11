@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,42 +15,87 @@ class DiscoveredFile:
     file_type: str  # sql, dbt_model, dbt_schema, dbt_project, airflow_dag, spark_job, data_contract
 
 
-def scan_directory(root: Path) -> list[DiscoveredFile]:
-    """Walk a repo and classify every data-related file."""
+def normalize_exclude_dir_names(raw: str | None) -> frozenset[str]:
+    """Split comma/semicolon-separated directory name tokens (case-insensitive match)."""
+    if not raw or not str(raw).strip():
+        return frozenset()
+    out: list[str] = []
+    for chunk in str(raw).replace(";", ",").split(","):
+        s = chunk.strip()
+        if s:
+            out.append(s.lower())
+    return frozenset(out)
+
+
+def scan_directory(
+    root: Path,
+    exclude_dir_names: frozenset[str] | None = None,
+) -> list[DiscoveredFile]:
+    """Walk a repo and classify every data-related file.
+
+    Descent skips hidden directories (name starts with ``.``) and any directory
+    whose name matches ``exclude_dir_names`` (case-insensitive).
+    """
     root = root.resolve()
     if not root.is_dir():
         return []
 
+    exc = exclude_dir_names or frozenset()
     files: list[DiscoveredFile] = []
 
-    for path in root.rglob("*"):
-        if path.is_dir() or path.name.startswith("."):
-            continue
+    for dirpath, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
+        dirnames[:] = [
+            d
+            for d in dirnames
+            if not d.startswith(".") and d.lower() not in exc
+        ]
+        for name in filenames:
+            if name.startswith("."):
+                continue
+            path = Path(dirpath) / name
 
-        # dbt models: models/**/*.sql
-        if _is_dbt_model(path, root):
-            files.append(DiscoveredFile(path, "dbt_model"))
-        # dbt schema YAML
-        elif _is_dbt_schema(path):
-            files.append(DiscoveredFile(path, "dbt_schema"))
-        # dbt project config
-        elif path.name == "dbt_project.yml":
-            files.append(DiscoveredFile(path, "dbt_project"))
-        # Raw SQL (not already tagged as dbt model)
-        elif path.suffix.lower() == ".sql":
-            files.append(DiscoveredFile(path, "sql"))
-        # Python: Airflow vs Spark heuristics
-        elif path.suffix.lower() == ".py":
-            content = path.read_text(encoding="utf-8", errors="ignore")
-            if _looks_like_airflow(content):
-                files.append(DiscoveredFile(path, "airflow_dag"))
-            elif _looks_like_spark(content):
-                files.append(DiscoveredFile(path, "spark_job"))
-        # YAML data contracts (not already dbt schema)
-        elif path.suffix.lower() in (".yml", ".yaml") and _is_data_contract(path):
-            files.append(DiscoveredFile(path, "data_contract"))
+            if _is_dbt_model(path, root):
+                files.append(DiscoveredFile(path, "dbt_model"))
+            elif _is_dbt_schema(path):
+                files.append(DiscoveredFile(path, "dbt_schema"))
+            elif name == "dbt_project.yml":
+                files.append(DiscoveredFile(path, "dbt_project"))
+            elif path.suffix.lower() == ".sql":
+                files.append(DiscoveredFile(path, "sql"))
+            elif path.suffix.lower() == ".py":
+                try:
+                    content = path.read_text(encoding="utf-8", errors="ignore")
+                except OSError:
+                    continue
+                if _looks_like_airflow(content):
+                    files.append(DiscoveredFile(path, "airflow_dag"))
+                elif _looks_like_spark(content):
+                    files.append(DiscoveredFile(path, "spark_job"))
+            elif path.suffix.lower() in (".yml", ".yaml") and _is_data_contract(path):
+                files.append(DiscoveredFile(path, "data_contract"))
 
     return files
+
+
+def iter_file_paths_under(root: Path, exclude_dir_names: frozenset[str]) -> list[Path]:
+    """List every file under *root* (non-hidden files, pruned dirs).
+
+    Used to find ``dbt_project.yml`` when the primary discovery pass is empty.
+    """
+    root = root.resolve()
+    exc = exclude_dir_names or frozenset()
+    out: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
+        dirnames[:] = [
+            d
+            for d in dirnames
+            if not d.startswith(".") and d.lower() not in exc
+        ]
+        for name in filenames:
+            if name.startswith("."):
+                continue
+            out.append(Path(dirpath) / name)
+    return out
 
 
 def _is_dbt_model(path: Path, root: Path) -> bool:

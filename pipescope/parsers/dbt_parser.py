@@ -100,9 +100,24 @@ def _safe_yaml_from_string(text: str) -> dict:
     return raw if isinstance(raw, dict) else {}
 
 
-def parse_dbt_project(root: Path) -> tuple[list[Asset], list[Edge]]:
+def _path_has_excluded_dir(path: Path, anchor: Path, exclude: frozenset[str]) -> bool:
+    if not exclude:
+        return False
+    try:
+        rel = path.resolve().relative_to(anchor.resolve())
+    except ValueError:
+        return False
+    lowered = {e.lower() for e in exclude}
+    return any(p.lower() in lowered for p in rel.parts)
+
+
+def parse_dbt_project(
+    root: Path,
+    exclude_dir_names: frozenset[str] | None = None,
+) -> tuple[list[Asset], list[Edge]]:
     """Parse dbt files under *root* into PipeScope assets and edges."""
     root = root.resolve()
+    exclude = exclude_dir_names or frozenset()
     project_file = root / "dbt_project.yml"
     if not project_file.is_file():
         return [], []
@@ -112,13 +127,13 @@ def parse_dbt_project(root: Path) -> tuple[list[Asset], list[Edge]]:
     model_paths_raw = project_cfg.get("model-paths", ["models"])
     model_paths = _normalize_model_paths(model_paths_raw)
 
-    model_meta, source_assets = _collect_schema_metadata(root, model_paths)
+    model_meta, source_assets = _collect_schema_metadata(root, model_paths, exclude)
     assets: list[Asset] = []
     assets.extend(source_assets.values())
     edges: list[Edge] = []
     seen_edges: set[tuple[str, str]] = set()
 
-    for model_sql in _iter_model_sql_files(root, model_paths):
+    for model_sql in _iter_model_sql_files(root, model_paths, exclude):
         model_name = model_sql.stem
         rel_path = str(model_sql.relative_to(root))
         meta = model_meta.get(model_name, ModelMeta())
@@ -139,7 +154,10 @@ def parse_dbt_project(root: Path) -> tuple[list[Asset], list[Edge]]:
         )
         assets.append(asset)
 
-        raw_sql = model_sql.read_text(encoding="utf-8", errors="ignore")
+        try:
+            raw_sql = model_sql.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
 
         for ref_name in _extract_refs(raw_sql):
             _add_edge_once(edges, seen_edges, source=ref_name, target=model_name)
@@ -173,19 +191,26 @@ def _normalize_model_paths(raw: object) -> list[str]:
     return ["models"]
 
 
-def _iter_model_sql_files(root: Path, model_paths: list[str]) -> list[Path]:
+def _iter_model_sql_files(
+    root: Path,
+    model_paths: list[str],
+    exclude: frozenset[str],
+) -> list[Path]:
     files: list[Path] = []
     for rel in model_paths:
         model_root = root / rel
         if not model_root.is_dir():
             continue
-        files.extend(sorted(model_root.rglob("*.sql")))
+        for p in sorted(model_root.rglob("*.sql")):
+            if not _path_has_excluded_dir(p, root, exclude):
+                files.append(p)
     return files
 
 
 def _collect_schema_metadata(
     root: Path,
     model_paths: list[str],
+    exclude: frozenset[str],
 ) -> tuple[dict[str, ModelMeta], dict[str, Asset]]:
     meta_by_model: dict[str, ModelMeta] = {}
     sources: dict[str, Asset] = {}
@@ -196,6 +221,8 @@ def _collect_schema_metadata(
             continue
         yaml_files = list(model_root.rglob("*.yml")) + list(model_root.rglob("*.yaml"))
         for yml_path in sorted(yaml_files):
+            if _path_has_excluded_dir(yml_path, root, exclude):
+                continue
             payload = _safe_yaml_dict(yml_path)
             if not payload:
                 continue

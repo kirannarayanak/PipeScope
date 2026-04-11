@@ -1,0 +1,12 @@
+{"version": 2, "width": 90, "height": 22, "title": "PipeScope demo"}
+[0.000000, "o", "$ pipescope scan . --format terminal\r\n"]
+[0.080000, "o", "\r\n"]
+[0.120000, "o", "Walking repository ... done\r\n"]
+[0.200000, "o", "dbt packages .......... done\r\n"]
+[0.280000, "o", "Parsing source files .. done\r\n"]
+[0.360000, "o", "Data contracts ........ done\r\n"]
+[0.440000, "o", "\r\n"]
+[0.520000, "o", "Found 37 data files\r\n"]
+[0.600000, "o", "Overall health score 78/100\r\n"]
+[0.720000, "o", "HTML report: /tmp/pipescope-report.html\r\n"]
+[1.000000, "o", "\r\n"]

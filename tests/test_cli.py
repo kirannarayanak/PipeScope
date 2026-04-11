@@ -82,6 +82,20 @@ def test_scan_help_shows_path_and_dialect(runner: CliRunner) -> None:
     assert result.exit_code == 0
     assert "dialect" in result.stdout.lower() or "--dialect" in result.stdout
     assert "test-coverage-critical-deps" in result.stdout
+    assert "--exclude" in result.stdout or "-e" in result.stdout
+    assert "pipescope scan" in result.stdout and "json" in result.stdout.lower()
+
+
+def test_diff_help_shows_exclude(runner: CliRunner) -> None:
+    result = runner.invoke(app, ["diff", "--help"], color=False)
+    assert result.exit_code == 0
+    assert "exclude" in result.stdout.lower()
+
+
+def test_ci_help_shows_exclude(runner: CliRunner) -> None:
+    result = runner.invoke(app, ["ci", "--help"], color=False)
+    assert result.exit_code == 0
+    assert "exclude" in result.stdout.lower()
 
 
 def test_scan_format_json_is_valid_json(runner: CliRunner) -> None:

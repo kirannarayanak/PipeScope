@@ -2,6 +2,53 @@
 
 Universal static analyzer for data pipelines. Point it at a Git repository to analyze SQL, dbt, Airflow, Spark, and data contracts without a database or cloud account.
 
+[![CI](https://github.com/kirannarayanak/PipeScope/actions/workflows/ci.yml/badge.svg)](https://github.com/kirannarayanak/PipeScope/actions/workflows/ci.yml)
+
+## Quickstart
+
+```bash
+pip install pipescope
+pipescope scan . --format json
+pipescope ci --threshold 70 --path .
+```
+
+*(From a checkout, use `pip install -e ".[dev]"` instead of `pip install pipescope`.)*
+
+## Demo (terminal GIF)
+
+![PipeScope scan demo](docs/demo/pipescope-demo.gif)
+
+The GIF above is a stylized preview (generated with `python scripts/generate_demo_gif.py`, requires [Pillow](https://python-pillow.org/)). For a pixel-perfect terminal capture, record with [asciinema](https://asciinema.org/) and convert with [agg](https://github.com/asciinema/agg); see [docs/demo/README.md](docs/demo/README.md). The repo includes [docs/demo/pipescope-demo.cast](docs/demo/pipescope-demo.cast) as a sample cast you can pass to `agg`.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph ingest [Ingest]
+    W[Directory walk]
+    P[Parsers: SQL, dbt, Airflow, Spark, ODCS]
+  end
+  subgraph graph [Graph]
+    G[Pipeline graph NetworkX]
+  end
+  subgraph analyze [Analyzers]
+    A1[Dead assets]
+    A2[Tests and docs]
+    A3[Complexity]
+    A4[Ownership]
+    A5[Contracts]
+    A6[Cost hotspots]
+  end
+  subgraph out [Output]
+    T[Rich terminal]
+    J[JSON]
+    H[HTML and D3]
+  end
+  W --> P --> G
+  G --> A1 & A2 & A3 & A4 & A5 & A6
+  A1 & A2 & A3 & A4 & A5 & A6 --> T & J & H
+```
+
 ## Requirements
 
 - Python 3.11+
@@ -59,7 +106,10 @@ pipescope --help
 pipescope scan .
 pipescope scan path/to/repo --dialect postgres
 pipescope scan . --format json
+pipescope scan . --exclude node_modules,venv,.venv,.git
 ```
+
+Terminal mode shows a **Rich progress** bar while walking the tree, loading dbt projects, parsing files, and reading contracts. Unreadable or failing files are **skipped** with a warning (see `parse_warnings` in JSON or the yellow panel in the terminal).
 
 Analyzer tuning (optional):
 
@@ -79,6 +129,7 @@ Top-level keys include:
 | `analytics` | Graph metrics plus per-analyzer blocks (see below) |
 | `findings` | Combined issues from all analyzers (categories vary by rule) |
 | `scores` | Integer 0–100 per dimension (see below) |
+| `parse_warnings` | Optional list of human-readable skip messages (parse/read failures) |
 
 **`analytics` (high level)** — In addition to graph/orphan/cycle style metrics, you get:
 

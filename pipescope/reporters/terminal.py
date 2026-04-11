@@ -56,10 +56,23 @@ def print_terminal_report(
     scores: dict[str, int],
     findings: list[Finding],
     html_report_path: str,
+    parse_warnings: list[str] | None = None,
 ) -> None:
     """Render terminal output with Rich panels, tables, and progress bars."""
     console.print(f"[bold purple]Scanning {scan_root}...[/]")
     console.print(f"Found {discovered_file_count} data files")
+
+    if parse_warnings:
+        warn_text = "\n".join(f"• {w}" for w in parse_warnings[:25])
+        if len(parse_warnings) > 25:
+            warn_text += f"\n• … +{len(parse_warnings) - 25} more"
+        console.print(
+            Panel(
+                warn_text,
+                title="Parse warnings (skipped files)",
+                border_style="yellow",
+            )
+        )
 
     asset_table = Table(
         title="Discovered Assets",

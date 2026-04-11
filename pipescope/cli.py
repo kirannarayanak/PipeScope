@@ -17,6 +17,14 @@ from pathlib import Path
 import typer
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.table import Table
 
 from pipescope import __version__
@@ -38,14 +46,18 @@ from pipescope.parsers.odcs_parser import ParsedContract
 from pipescope.reporters.html_report import write_report
 from pipescope.reporters.json_report import format_scan_json
 from pipescope.reporters.terminal import print_terminal_report
-from pipescope.scanner import DiscoveredFile, scan_directory
+from pipescope.scanner import (
+    DiscoveredFile,
+    iter_file_paths_under,
+    normalize_exclude_dir_names,
+    scan_directory,
+)
 
 app = typer.Typer(
     name="pipescope",
     help="PipeScope: Universal static analyzer for data pipelines.",
     no_args_is_help=True,
 )
-
 
 def _ensure_utf8_stdio() -> None:
     """Prefer UTF-8 on Windows so Rich tables and paths print reliably."""
@@ -78,7 +90,16 @@ def _make_console() -> Console:
 
 @app.callback()
 def main() -> None:
-    """PipeScope CLI."""
+    """PipeScope: scan repos, diff scans across git refs, or run CI gates.
+
+    Examples:
+
+        pipescope scan . --format json
+
+        pipescope diff HEAD~1 --path .
+
+        pipescope ci --threshold 70 --path .
+    """
 
 
 def _relative_file_path(file_path: Path, root: Path) -> str:
@@ -88,16 +109,20 @@ def _relative_file_path(file_path: Path, root: Path) -> str:
         return str(file_path)
 
 
-def _collect_dbt_project_roots(scan_root: Path, files: list[DiscoveredFile]) -> list[Path]:
+def _collect_dbt_project_roots(
+    scan_root: Path,
+    files: list[DiscoveredFile],
+    exclude_names: frozenset[str],
+) -> list[Path]:
     """Directory paths that contain ``dbt_project.yml`` (one dbt project each)."""
     roots: set[Path] = set()
     for f in files:
         if f.file_type == "dbt_project":
             roots.add(f.path.resolve().parent)
     if not roots:
-        for yml in scan_root.rglob("dbt_project.yml"):
-            if yml.is_file():
-                roots.add(yml.resolve().parent)
+        for path in iter_file_paths_under(scan_root, exclude_names):
+            if path.name == "dbt_project.yml" and path.is_file():
+                roots.add(path.resolve().parent)
     return sorted(roots)
 
 
@@ -147,49 +172,116 @@ def _dedupe_edges(edges: list[Edge]) -> list[Edge]:
 def collect_scan(
     root: Path,
     dialect: str | None,
+    *,
+    exclude_names: frozenset[str] = frozenset(),
+    parse_warnings: list[str] | None = None,
+    progress: Progress | None = None,
 ) -> tuple[list[DiscoveredFile], list[Asset], list[Edge], list[ParsedContract]]:
     """Discover files and parse SQL, dbt projects, Airflow DAGs, Spark jobs, and ODCS contracts."""
     scan_root = root.resolve()
-    files = scan_directory(scan_root)
-    dbt_roots_list = _collect_dbt_project_roots(scan_root, files)
+    warns: list[str] = parse_warnings if parse_warnings is not None else []
+
+    def _warn(msg: str) -> None:
+        warns.append(msg)
+
+    def _advance(task_id: int | None) -> None:
+        if progress is not None and task_id is not None:
+            progress.advance(task_id)
+
+    t_walk: int | None = None
+    if progress is not None:
+        t_walk = progress.add_task("Walking repository", total=1)
+    files = scan_directory(scan_root, exclude_names)
+    _advance(t_walk)
+
+    dbt_roots_list = _collect_dbt_project_roots(scan_root, files, exclude_names)
     dbt_roots = set(dbt_roots_list)
 
     all_assets: list[Asset] = []
     all_edges: list[Edge] = []
     parsed_contracts: list[ParsedContract] = []
 
+    t_dbt: int | None = None
+    if progress is not None:
+        t_dbt = progress.add_task(
+            "dbt projects",
+            total=max(1, len(dbt_roots_list)),
+        )
     for project_root in dbt_roots_list:
-        dbt_assets, dbt_edges = parse_dbt_project(project_root)
+        try:
+            dbt_assets, dbt_edges = parse_dbt_project(
+                project_root,
+                exclude_dir_names=exclude_names,
+            )
+        except Exception as ex:
+            _warn(
+                f"dbt project {project_root.name}: skipped ({type(ex).__name__}: {ex})",
+            )
+            dbt_assets, dbt_edges = [], []
         _remap_asset_paths_to_scan_root(dbt_assets, project_root, scan_root)
         all_assets.extend(dbt_assets)
         all_edges.extend(dbt_edges)
+        _advance(t_dbt)
+    if progress is not None and t_dbt is not None and not dbt_roots_list:
+        progress.advance(t_dbt)
 
-    for f in files:
-        if f.file_type == "dbt_model" and _path_under_any_project(f.path, dbt_roots):
-            continue
-        if f.file_type == "dbt_schema" and _path_under_any_project(f.path, dbt_roots):
-            continue
-        if f.file_type not in (
+    to_parse = [
+        f
+        for f in files
+        if f.file_type in (
             "sql",
             "dbt_model",
             "dbt_schema",
             "airflow_dag",
             "spark_job",
-        ):
-            continue
-        assets, edges = parse_file(f, dialect, scan_root=scan_root)
+        )
+        and not (
+            f.file_type in ("dbt_model", "dbt_schema")
+            and _path_under_any_project(f.path, dbt_roots)
+        )
+    ]
+
+    t_parse: int | None = None
+    if progress is not None:
+        t_parse = progress.add_task(
+            "Parsing source files",
+            total=max(1, len(to_parse)),
+        )
+    for f in to_parse:
+        rel = _relative_file_path(f.path, scan_root)
+        try:
+            assets, edges = parse_file(f, dialect, scan_root=scan_root)
+        except Exception as ex:
+            _warn(f"{rel}: skipped ({type(ex).__name__}: {ex})")
+            assets, edges = [], []
         all_assets.extend(assets)
         all_edges.extend(edges)
+        _advance(t_parse)
+    if progress is not None and t_parse is not None and not to_parse:
+        progress.advance(t_parse)
 
-    for f in files:
-        if f.file_type != "data_contract":
-            continue
+    contract_files = [f for f in files if f.file_type == "data_contract"]
+    t_contract: int | None = None
+    if progress is not None:
+        t_contract = progress.add_task(
+            "Data contracts",
+            total=max(1, len(contract_files)),
+        )
+    for f in contract_files:
+        rel = _relative_file_path(f.path, scan_root)
         try:
             content = f.path.read_text(encoding="utf-8", errors="ignore")
-        except OSError:
+        except OSError as ex:
+            _warn(f"{rel}: skipped (read error: {ex})")
+            _advance(t_contract)
             continue
-        rel = _relative_file_path(f.path, scan_root)
-        parsed_contracts.extend(parse_odcs_file(rel, content))
+        try:
+            parsed_contracts.extend(parse_odcs_file(rel, content))
+        except Exception as ex:
+            _warn(f"{rel}: skipped ({type(ex).__name__}: {ex})")
+        _advance(t_contract)
+    if progress is not None and t_contract is not None and not contract_files:
+        progress.advance(t_contract)
 
     all_edges = _dedupe_edges(all_edges)
     return files, all_assets, all_edges, parsed_contracts
@@ -230,8 +322,9 @@ def _build_scan_payload_dict(
     analytics: dict,
     findings: list,
     scores: dict[str, int],
+    parse_warnings: list[str] | None = None,
 ) -> dict:
-    return {
+    payload = {
         "version": version,
         "scan_root": str(scan_root),
         "discovered_file_count": len(files),
@@ -246,6 +339,9 @@ def _build_scan_payload_dict(
         "findings": [f.model_dump(mode="json") for f in findings],
         "scores": dict(scores),
     }
+    if parse_warnings:
+        payload["parse_warnings"] = list(parse_warnings)
+    return payload
 
 
 def _write_snapshot(scan_root: Path, payload: dict) -> Path | None:
@@ -377,10 +473,38 @@ def _compute_scan_artifacts(
     dead_asset_whitelist: str | None,
     dead_asset_terminal_tags: str | None,
     test_coverage_critical_deps: int,
+    exclude: str | None = None,
+    use_progress: bool = False,
+    progress_console: Console | None = None,
 ) -> tuple[list[DiscoveredFile], list[Asset], list[Edge], dict, dict, list]:
     """Run full scan/analyzer pipeline and return core artifacts."""
-    files, all_assets, all_edges, parsed_contracts = collect_scan(root, dialect)
-    dbt_roots = set(_collect_dbt_project_roots(root, files))
+    exclude_set = normalize_exclude_dir_names(exclude)
+    parse_warnings: list[str] = []
+
+    def _run_collect(progress: Progress | None) -> tuple[list, list, list, list]:
+        return collect_scan(
+            root,
+            dialect,
+            exclude_names=exclude_set,
+            parse_warnings=parse_warnings,
+            progress=progress,
+        )
+
+    if use_progress and progress_console is not None:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TextColumn("•"),
+            TimeElapsedColumn(),
+            console=progress_console,
+        ) as progress:
+            files, all_assets, all_edges, parsed_contracts = _run_collect(progress)
+    else:
+        files, all_assets, all_edges, parsed_contracts = _run_collect(None)
+
+    dbt_roots = set(_collect_dbt_project_roots(root, files, exclude_set))
     pg = build_pipeline_graph(all_assets, all_edges)
     summary = graph_summary(pg.g)
     analytics = compute_scan_analytics(pg, all_assets)
@@ -447,24 +571,47 @@ def _compute_scan_artifacts(
         analytics=analytics,
         findings=findings,
         scores=scores,
+        parse_warnings=parse_warnings,
     )
     return files, all_assets, all_edges, payload_dict, scores, findings
 
 
-@app.command()
+@app.command(
+    epilog=(
+        "Examples:\n"
+        "  pipescope scan . --format json\n"
+        "  pipescope scan ./transforms -d snowflake --exclude node_modules,.venv,venv"
+    ),
+)
 def scan(
-    path: str = typer.Argument(".", help="Path to scan."),
+    path: str = typer.Argument(
+        ".",
+        help="Directory to scan (Git repo or folder with SQL/dbt/Airflow/Spark).",
+        show_default=True,
+    ),
     dialect: str | None = typer.Option(
         None,
         "--dialect",
         "-d",
-        help="SQL dialect (snowflake, bigquery, postgres, etc.).",
+        help=(
+            "SQL dialect for SQLGlot (e.g. snowflake, bigquery, postgres, duckdb). "
+            "Omit for generic parsing."
+        ),
     ),
     format_: str = typer.Option(
         "terminal",
         "--format",
         "-f",
-        help="Output: terminal (Rich) or json (machine-readable).",
+        help="terminal: Rich report + HTML path; json: one JSON object on stdout.",
+    ),
+    exclude: str | None = typer.Option(
+        None,
+        "--exclude",
+        "-e",
+        help=(
+            "Comma-separated directory names to prune while walking (e.g. "
+            "node_modules,venv,.venv,.git). Case-insensitive; hidden dirs are always skipped."
+        ),
     ),
     dead_asset_whitelist: str | None = typer.Option(
         None,
@@ -489,7 +636,7 @@ def scan(
         ),
     ),
 ) -> None:
-    """Scan a directory and analyze data pipeline health."""
+    """Scan a directory and analyze data pipeline health (lineage, tests, docs, contracts)."""
     fmt = format_.strip().lower()
     if fmt not in ("terminal", "json"):
         raise typer.BadParameter("format must be 'terminal' or 'json'")
@@ -497,20 +644,27 @@ def scan(
         raise typer.BadParameter("--test-coverage-critical-deps must be >= 0")
 
     root = Path(path).resolve()
+    exclude_set = normalize_exclude_dir_names(exclude)
+    term = fmt == "terminal"
+    console = _make_console()
     files, all_assets, all_edges, payload_dict, scores, findings = _compute_scan_artifacts(
         root=root,
         dialect=dialect,
         dead_asset_whitelist=dead_asset_whitelist,
         dead_asset_terminal_tags=dead_asset_terminal_tags,
         test_coverage_critical_deps=test_coverage_critical_deps,
+        exclude=exclude,
+        use_progress=term,
+        progress_console=console if term else None,
     )
     summary = payload_dict["graph"]
     analytics = payload_dict["analytics"]
-    dbt_roots = set(_collect_dbt_project_roots(root, files))
+    dbt_roots = set(_collect_dbt_project_roots(root, files, exclude_set))
     _write_snapshot(root, payload_dict)
 
     if fmt == "json":
         _ensure_utf8_stdio()
+        pw = payload_dict.get("parse_warnings")
         payload = format_scan_json(
             version=__version__,
             scan_root=str(root),
@@ -525,6 +679,7 @@ def scan(
             analytics=analytics,
             findings=findings,
             scores=scores,
+            parse_warnings=pw if isinstance(pw, list) else None,
         )
         sys.stdout.write(payload)
         if not payload.endswith("\n"):
@@ -532,12 +687,12 @@ def scan(
         return
 
     _ensure_utf8_stdio()
-    console = _make_console()
     html_report_path = Path(tempfile.gettempdir()) / "pipescope-report.html"
     write_report(
         html_report_path,
         payload_dict,
     )
+    parse_warnings = payload_dict.get("parse_warnings") or []
     print_terminal_report(
         console,
         scan_root=str(root),
@@ -549,21 +704,43 @@ def scan(
         scores=scores,
         findings=findings,
         html_report_path=str(html_report_path),
+        parse_warnings=parse_warnings if isinstance(parse_warnings, list) else [],
     )
 
 
-@app.command()
+@app.command(
+    epilog=(
+        "Examples:\n"
+        "  pipescope diff HEAD~1 --path .\n"
+        "  pipescope diff main --exclude node_modules,venv"
+    ),
+)
 def diff(
-    ref: str = typer.Argument("HEAD~1", help="Git ref to compare against (e.g. HEAD~1)."),
-    path: str = typer.Option(".", "--path", help="Repository root path."),
+    ref: str = typer.Argument(
+        "HEAD~1",
+        help="Git revision to compare against (e.g. HEAD~1, main, abc1234).",
+        show_default=True,
+    ),
+    path: str = typer.Option(
+        ".",
+        "--path",
+        help="Git repository root (must be inside a work tree).",
+        show_default=True,
+    ),
     dialect: str | None = typer.Option(
         None,
         "--dialect",
         "-d",
-        help="SQL dialect (snowflake, bigquery, postgres, etc.).",
+        help="SQL dialect passed through to SQL parsing (same as scan).",
+    ),
+    exclude: str | None = typer.Option(
+        None,
+        "--exclude",
+        "-e",
+        help="Comma-separated directory names to skip while walking (same as scan).",
     ),
 ) -> None:
-    """Diff current scan results against a previous git ref."""
+    """Compare PipeScope assets and findings: current tree vs a git ref (via worktree)."""
     root = Path(path).resolve()
     _ensure_utf8_stdio()
     console = _make_console()
@@ -591,6 +768,9 @@ def diff(
         dead_asset_whitelist=None,
         dead_asset_terminal_tags=None,
         test_coverage_critical_deps=10,
+        exclude=exclude,
+        use_progress=False,
+        progress_console=None,
     )
 
     with tempfile.TemporaryDirectory(prefix="pipescope-diff-") as tmp:
@@ -617,6 +797,9 @@ def diff(
                     dead_asset_whitelist=None,
                     dead_asset_terminal_tags=None,
                     test_coverage_critical_deps=10,
+                    exclude=exclude,
+                    use_progress=False,
+                    progress_console=None,
                 )
             )
         finally:
@@ -694,22 +877,39 @@ def diff(
     )
 
 
-@app.command()
+@app.command(
+    epilog=(
+        "Examples:\n"
+        "  pipescope ci --threshold 70\n"
+        "  pipescope ci --path ./dbt --exclude .venv,venv --threshold 80"
+    ),
+)
 def ci(
     threshold: int = typer.Option(
         70,
         "--threshold",
-        help="Fail build when overall score is below this value (0-100).",
+        help="Exit with code 1 when blended overall score is below this (0–100).",
     ),
-    path: str = typer.Option(".", "--path", help="Path to scan."),
+    path: str = typer.Option(
+        ".",
+        "--path",
+        help="Directory to scan (repository root recommended).",
+        show_default=True,
+    ),
     dialect: str | None = typer.Option(
         None,
         "--dialect",
         "-d",
-        help="SQL dialect (snowflake, bigquery, postgres, etc.).",
+        help="SQL dialect for parsing (same as scan).",
+    ),
+    exclude: str | None = typer.Option(
+        None,
+        "--exclude",
+        "-e",
+        help="Comma-separated directory names to skip while walking (same as scan).",
     ),
 ) -> None:
-    """CI mode: run scan, emit annotations, and fail below threshold."""
+    """Run a full scan for CI: GitHub Actions annotations, optional PR comment, threshold gate."""
     if threshold < 0 or threshold > 100:
         raise typer.BadParameter("--threshold must be between 0 and 100")
     root = Path(path).resolve()
@@ -719,6 +919,9 @@ def ci(
         dead_asset_whitelist=None,
         dead_asset_terminal_tags=None,
         test_coverage_critical_deps=10,
+        exclude=exclude,
+        use_progress=False,
+        progress_console=None,
     )
     _write_snapshot(root, payload)
     overall = _overall_health_score(scores)

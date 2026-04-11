@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from pipescope.scanner import DiscoveredFile, scan_directory
+from pipescope.scanner import DiscoveredFile, normalize_exclude_dir_names, scan_directory
 
 FIXTURE_ROOT = Path(__file__).resolve().parent / "fixtures" / "scanner_sample"
 
@@ -71,3 +71,23 @@ def test_discovered_file_is_frozen_dataclass() -> None:
 
 def test_scan_directory_missing_root_returns_empty(tmp_path: Path) -> None:
     assert scan_directory(tmp_path / "nope") == []
+
+
+def test_scan_directory_exclude_skips_directory(tmp_path: Path) -> None:
+    (tmp_path / "models").mkdir()
+    (tmp_path / "models" / "ok.sql").write_text("select 1", encoding="utf-8")
+    junk = tmp_path / "node_modules" / "pkg"
+    junk.mkdir(parents=True)
+    (junk / "bad.sql").write_text("select 2", encoding="utf-8")
+
+    all_files = scan_directory(tmp_path, frozenset())
+    assert any(f.path.name == "bad.sql" for f in all_files)
+
+    filtered = scan_directory(tmp_path, normalize_exclude_dir_names("node_modules"))
+    names = {f.path.name for f in filtered}
+    assert "ok.sql" in names
+    assert "bad.sql" not in names
+
+
+def test_normalize_exclude_accepts_semicolon() -> None:
+    assert normalize_exclude_dir_names("A,b;C") == frozenset({"a", "b", "c"})
